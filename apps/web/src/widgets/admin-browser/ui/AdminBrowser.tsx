@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { adminApi, DataTable, TableList } from '@/features/admin-tables';
 import { ExtractionReview } from '@/features/extraction-review';
+import { MergeReview } from '@/features/merge-review';
 import { SyncButton } from '@/features/run-sync';
 import { useAsync } from '@/shared/lib';
 import { PageState } from '@/shared/ui';
 
 const LIMIT = 50;
 
-type Tab = 'db' | 'review';
+type Tab = 'db' | 'review' | 'merge';
 
 export function AdminBrowser() {
   const [tab, setTab] = useState<Tab>('review');
@@ -31,6 +32,7 @@ export function AdminBrowser() {
             {(
               [
                 ['review', '추출 검수'],
+                ['merge', '중복 병합'],
                 ['db', 'DB'],
               ] as const
             ).map(([k, label]) => (
@@ -48,6 +50,7 @@ export function AdminBrowser() {
         <SyncButton onDone={refresh} />
       </div>
       {tab === 'review' && <ExtractionReview key={String(tables.data?.length)} />}
+      {tab === 'merge' && <MergeReview />}
       <div className={`grid gap-4 lg:grid-cols-[220px_1fr] ${tab === 'db' ? '' : 'hidden'}`}>
         <PageState loading={tables.loading} error={tables.error}>
           <TableList

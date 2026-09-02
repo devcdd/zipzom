@@ -5,6 +5,7 @@ const SOURCES = [
   ['마이홈', 'myhome'],
   ['SH', 'sh'],
   ['HUG', 'hug'],
+  ['LH', 'lh'],
 ] as const;
 
 export function SyncButton({ onDone }: { onDone?: (r: SyncReport) => void }) {
@@ -38,7 +39,7 @@ export function SyncButton({ onDone }: { onDone?: (r: SyncReport) => void }) {
               {label} {report[key].notices}건{report[key].error && ` (오류: ${report[key].error})`} ·{' '}
             </span>
           ))}
-          좌표 {report.geocode.resolved}/{report.geocode.attempted}
+          병합 {report.merge.linked}건 · 자격추출 {report.lhExtract.attempted}건{report.lhExtract.error && ` (중단: ${report.lhExtract.error})`} · 좌표 {report.geocode.resolved}/{report.geocode.attempted}
           {report.geocode.error && ` (중단: ${report.geocode.error})`}
         </span>
       )}

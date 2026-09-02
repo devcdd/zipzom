@@ -3,7 +3,7 @@ import { AdminGuard } from '../auth/auth.js';
 import { z } from 'zod';
 import { Db } from '../db.js';
 import { ExtractionService } from '../sync/extraction.service.js';
-import { extractedHouseSchema } from '../sync/house-extractor.js';
+import { extractedEligibilitySchema, extractedHouseSchema } from '../sync/house-extractor.js';
 import { SyncService } from '../sync/sync.service.js';
 import { parse } from '../validate.js';
 
@@ -59,6 +59,26 @@ export class AdminController {
     return this.sync.runAll();
   }
 
+  /** 자동 병합된 중복 공고 쌍. 대표(canonical)만 목록에 노출되고 duplicate는 숨겨진 상태다. */
+  @Get('duplicates')
+  duplicates() {
+    return this.db.query(
+      `select d.id, d.source, d.source_id as "sourceId", d.title, d.posted_on::text as "postedOn", d.detail_url as "detailUrl",
+         c.id as "canonicalId", c.source as "canonicalSource", c.title as "canonicalTitle",
+         c.posted_on::text as "canonicalPostedOn", c.detail_url as "canonicalDetailUrl",
+         (select count(*)::int from notice_houses h where h.notice_id = c.id) as "canonicalHouseCount"
+       from notices d join notices c on c.id = d.duplicate_of
+       order by c.posted_on desc nulls last, d.id desc`,
+    );
+  }
+
+  /** 오탐 해제. 다시 노출되고, 이후 동기화에서 재병합하지 않는다. */
+  @Post('duplicates/:id/unlink')
+  async unlinkDuplicate(@Param('id', ParseIntPipe) id: number) {
+    await this.db.query(`update notices set duplicate_of = null, merge_ignored = true where id = $1`, [id]);
+    return { ok: true };
+  }
+
   @Get('extractions')
   extractions() {
     return this.extraction.list();
@@ -67,8 +87,8 @@ export class AdminController {
   /** 검수 화면에서 고친 표를 그대로 받아 반영한 뒤, 새 단지 좌표를 바로 찍는다. */
   @Post('extractions/:noticeId/approve')
   async approve(@Param('noticeId', ParseIntPipe) noticeId: number, @Body() body: unknown) {
-    const { houses } = parse(z.object({ houses: z.array(extractedHouseSchema).min(1) }), body);
-    await this.extraction.approve(noticeId, houses);
+    const { houses, eligibility } = parse(z.object({ houses: z.array(extractedHouseSchema), eligibility: z.array(extractedEligibilitySchema) }), body);
+    await this.extraction.approve(noticeId, houses, eligibility);
     return this.sync.geocodeMissing();
   }
 

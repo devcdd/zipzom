@@ -142,8 +142,12 @@ create table notices (
   raw                 jsonb not null,
   first_seen_at       timestamptz not null default now(),
   updated_at          timestamptz not null default now(),
+  -- 같은 공고가 마이홈·LH 양쪽에 올라온다. 정보가 많은 쪽을 대표로 두고 나머지가 이 컬럼으로 가리킨다
+  duplicate_of        bigint references notices(id) on delete set null,
+  merge_ignored       boolean not null default false,   -- 자동 판정 오탐을 어드민이 끈 상태
   unique (source, source_id)
 );
+create index on notices (duplicate_of) where duplicate_of is not null;
 create index on notices (apply_end_on) where status <> '접수마감';
 create index on notices (house_type);
 
@@ -165,7 +169,24 @@ create table notice_houses (
   lat               double precision,
   lng               double precision,
   geocode_failed_at timestamptz,          -- 지오코딩 결과 없음. 재시도 제외
+  eligible_groups   text[],               -- 이 단지에 배정된 계층 코드 (공고문 추출). null = 미상
   unique (notice_id, house_sn)
+);
+
+-- 공고별 입주자격 기준 (공고 × 계층). 공고문 LLM 추출 → 어드민 승인으로 채움. 없으면 eligibility_rules 공통 기준 사용
+create table notice_eligibility (
+  notice_id        bigint not null references notices(id) on delete cascade,
+  code             text   not null,      -- eligibility_rules.code 또는 INDUSTRIAL·OTHER
+  label            text   not null,      -- 공고문 표기 계층명
+  age_min          smallint,
+  age_max          smallint,
+  income_pct       smallint,
+  dual_income_pct  smallint,
+  asset_limit      bigint,
+  car_limit        bigint,
+  exempt           text[] not null default '{}', -- 공고가 명시적으로 배제한 요건: income·asset·car (자격완화)
+  conditions       text[] not null default '{}',
+  primary key (notice_id, code)
 );
 create index on notice_houses (sigungu_code);
 create index on notice_houses (lat, lng);
@@ -236,7 +257,8 @@ create table notice_extractions (
   pdf_name     text,
   model        text,
   status       extraction_status not null default 'PENDING',
-  houses       jsonb,                  -- [{name, address, supplyCount, totalHouseholds, minDeposit, minMonthlyRent}]
+  houses       jsonb,                  -- [{name, address, supplyCount, totalHouseholds, minDeposit, minMonthlyRent, groups}]
+  eligibility  jsonb,                  -- [{code, label, ageMin, ageMax, incomePct, dualIncomePct, assetLimit, carLimit, conditions}]
   usage        jsonb,                  -- 토큰 사용량 (비용 추적)
   error        text,
   created_at   timestamptz not null default now(),
