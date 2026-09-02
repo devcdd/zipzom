@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: always   # Desktop 업데이트가 컨테이너를 stop 시켜도 데몬 재시작 시 복구
+    environment:
+      POSTGRES_USER: zipzom
+      POSTGRES_PASSWORD: zipzom
+      POSTGRES_DB: zipzom
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zipzom"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  pgdata:

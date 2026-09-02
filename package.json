@@ -1,0 +1,16 @@
+{
+  "name": "zipzom",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:api": "pnpm --filter api start:dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d db"
+  }
+}
