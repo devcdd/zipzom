@@ -120,7 +120,7 @@ export function NoticeCard({
           )}
         </ul>
       )}
-      {n.eligibility.length > 0 && (
+      {(n.eligibility?.length ?? 0) > 0 && (
         <section className="rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="mr-1 font-semibold text-muted">지원 자격</span>

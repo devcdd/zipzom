@@ -49,8 +49,9 @@ const numOrNull = (raw: string) => (raw === '' ? null : Number(raw));
 
 /** 원문 PDF 옆에서 자격 기준·단지 표를 셀 단위로 고쳐 승인. 승인 전엔 아무것도 반영되지 않는다 */
 function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () => void }) {
-  const [houses, setHouses] = useState<ExtractedHouse[]>(item.houses ?? []);
-  const [elig, setElig] = useState<ExtractedEligibility[]>(item.eligibility ?? []);
+  // 스키마 확장 전에 저장된 행은 groups·exempt·conditions가 없다
+  const [houses, setHouses] = useState<ExtractedHouse[]>((item.houses ?? []).map((h) => ({ ...h, groups: h.groups ?? [] })));
+  const [elig, setElig] = useState<ExtractedEligibility[]>((item.eligibility ?? []).map((e) => ({ ...e, exempt: e.exempt ?? [], conditions: e.conditions ?? [] })));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editable = item.status === 'PENDING';
