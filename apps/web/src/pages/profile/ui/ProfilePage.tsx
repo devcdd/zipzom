@@ -31,7 +31,7 @@ export function ProfilePage() {
       <div>
         <h1 className="text-lg font-semibold">내 주거 조건</h1>
         <p className="text-sm text-muted">
-          행복주택 계층 판정에 쓰이는 항목만 물어요.{' '}
+          입주 자격 계층 판정에 쓰이는 항목만 물어요.{' '}
           {me ? (
             <>계정에 저장돼 다른 기기에서도 이어집니다.</>
           ) : (

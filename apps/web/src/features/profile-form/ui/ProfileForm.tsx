@@ -1,7 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { MARITAL_LABEL, type MaritalStatus, type Profile } from '@/entities/profile';
 import { groupBySido, isSidoCode, mergeSidos, regionLabel, type Region } from '@/entities/region';
-import { toManwon, toWon } from '@/shared/lib';
+import { ageOn, toManwon, toWon } from '@/shared/lib';
+import { DateParts } from './DateParts';
 
 const MARITALS = Object.keys(MARITAL_LABEL) as MaritalStatus[];
 
@@ -56,11 +57,34 @@ export function ProfileForm({
   const mySigungu = regions.filter((r) => r.sidoCode === p.sidoCode && !isSidoCode(r.code));
   const married = p.maritalStatus !== 'SINGLE';
 
-  const togglePreferred = (code: string) =>
-    set('preferredSigunguCodes', p.preferredSigunguCodes.includes(code) ? p.preferredSigunguCodes.filter((c) => c !== code) : [...p.preferredSigunguCodes, code]);
+  /**
+   * 시도 전체('XX000')는 하위 구 전부와 한 몸으로 움직인다.
+   * 전체 클릭 → 구 전부 on/off. 구 하나 빼면 전체도 빠지고, 구를 다 채우면 전체가 자동으로 붙는다
+   */
+  const togglePreferred = (code: string) => {
+    const group = groups.find((g) => g.regions.some((r) => r.code === code));
+    if (!group) return;
+    const sidoAll = `${group.sido.code}000`;
+    const gus = group.regions.map((r) => r.code).filter((c) => c !== sidoAll);
+    const others = p.preferredSigunguCodes.filter((c) => c !== sidoAll && !gus.includes(c));
+    const selected = new Set(p.preferredSigunguCodes.filter((c) => gus.includes(c)));
+    if (code === sidoAll) {
+      const allOn = gus.every((c) => selected.has(c));
+      set('preferredSigunguCodes', allOn ? others : [...others, sidoAll, ...gus]);
+      return;
+    }
+    if (selected.has(code)) selected.delete(code);
+    else selected.add(code);
+    const full = gus.every((c) => selected.has(c));
+    set('preferredSigunguCodes', [...others, ...(full ? [sidoAll] : []), ...gus.filter((c) => selected.has(c))]);
+  };
 
+  const [localError, setLocalError] = useState<string | null>(null);
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    // required는 빈 칸만 잡는다. 2월 31일처럼 존재하지 않는 날짜는 DateParts가 ''로 넘기므로 여기서 거른다
+    if (!p.birthDate) return setLocalError('생년월일을 올바르게 입력해 주세요');
+    setLocalError(null);
     onSubmit({
       ...p,
       marriedAt: p.maritalStatus === 'MARRIED' ? p.marriedAt || null : null,
@@ -73,8 +97,8 @@ export function ProfileForm({
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <Section title="기본">
-        <Field label="생년월일">
-          <input type="date" className="field" required value={p.birthDate} onChange={(e) => set('birthDate', e.target.value)} />
+        <Field label="생년월일" hint={p.birthDate ? `만 ${ageOn(p.birthDate)}세` : undefined}>
+          <DateParts required value={p.birthDate} onChange={(v) => set('birthDate', v)} />
         </Field>
         <Field label="혼인 상태">
           <div className="flex gap-1 rounded-md border border-line bg-surface p-0.5 text-sm">
@@ -92,7 +116,7 @@ export function ProfileForm({
         </Field>
         {p.maritalStatus === 'MARRIED' && (
           <Field label="혼인신고일" hint="신혼부부 계층은 7년 이내">
-            <input type="date" className="field" value={p.marriedAt ?? ''} onChange={(e) => set('marriedAt', e.target.value || null)} />
+            <DateParts value={p.marriedAt ?? ''} onChange={(v) => set('marriedAt', v || null)} />
           </Field>
         )}
         <Field label="자녀 수">
@@ -100,7 +124,7 @@ export function ProfileForm({
         </Field>
         {p.childrenCount > 0 && (
           <Field label="막내 자녀 생년월일" hint="태아는 출산 예정일. 만 6세 이하면 신혼부부·한부모 계층">
-            <input type="date" className="field" value={p.youngestChildBirthDate ?? ''} onChange={(e) => set('youngestChildBirthDate', e.target.value || null)} />
+            <DateParts value={p.youngestChildBirthDate ?? ''} onChange={(v) => set('youngestChildBirthDate', v || null)} />
           </Field>
         )}
       </Section>
@@ -184,7 +208,7 @@ export function ProfileForm({
         </div>
       </Section>
 
-      {error && <p className="text-sm text-danger">{error}</p>}
+      {(localError ?? error) && <p className="text-sm text-danger">{localError ?? error}</p>}
       <div className="flex justify-end">
         <button type="submit" className="btn-primary" disabled={submitting}>
           {submitting ? '저장 중…' : '저장하고 매칭 보기'}
