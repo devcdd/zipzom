@@ -55,7 +55,9 @@ function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () =
   const [elig, setElig] = useState<ExtractedEligibility[]>((item.eligibility ?? []).map((e) => ({ ...e, exempt: e.exempt ?? [], conditions: e.conditions ?? [] })));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const editable = item.status === 'PENDING';
+  // 승인·반려 뒤에도 고쳐서 다시 반영할 수 있다. 실패 건은 추출 결과가 없으니 재추출만
+  const editable = item.status !== 'FAILED';
+  const pending = item.status === 'PENDING';
   const cols = item.source === 'SH' ? SH_COLS : LH_COLS;
 
   const setHouse = (i: number, key: keyof ExtractedHouse, raw: string, num?: boolean) =>
@@ -109,15 +111,15 @@ function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () =
           </div>
         </div>
         <div className="flex gap-1.5">
+          {pending && (
+            <button type="button" className="btn-ghost px-2.5 py-1 text-xs" disabled={busy} onClick={() => run(() => extractionApi.reject(item.noticeId))}>
+              반려
+            </button>
+          )}
           {editable && (
-            <>
-              <button type="button" className="btn-ghost px-2.5 py-1 text-xs" disabled={busy} onClick={() => run(() => extractionApi.reject(item.noticeId))}>
-                반려
-              </button>
-              <button type="button" className="btn-primary px-2.5 py-1 text-xs" disabled={busy || !canApprove} onClick={() => run(() => extractionApi.approve(item.noticeId, houses, elig))}>
-                {busy ? '반영 중…' : `승인 · 자격 ${elig.length}계층 · 단지 ${houses.length}`}
-              </button>
-            </>
+            <button type="button" className="btn-primary px-2.5 py-1 text-xs" disabled={busy || !canApprove} onClick={() => run(() => extractionApi.approve(item.noticeId, houses, elig))}>
+              {busy ? '반영 중…' : `${pending ? '승인' : '수정 반영'} · 자격 ${elig.length}계층 · 단지 ${houses.length}`}
+            </button>
           )}
           {item.status !== 'APPROVED' && (
             <button type="button" className="btn-ghost px-2.5 py-1 text-xs" disabled={busy} onClick={() => run(() => extractionApi.retry(item.noticeId))}>
