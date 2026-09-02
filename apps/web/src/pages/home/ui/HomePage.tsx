@@ -73,7 +73,7 @@ export function HomePage() {
                   ) : (
                     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
                       <div className="grid gap-3">
-                        {matches.data.notices.map((n) => (
+                        {[...matches.data.notices].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId)).map((n) => (
                           <NoticeCard
                             key={n.id}
                             notice={n}

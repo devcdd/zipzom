@@ -15,7 +15,8 @@ declare namespace kakao.maps {
     constructor(el: HTMLElement, opts: { center: LatLng; level: number });
     setBounds(b: LatLngBounds, ...padding: number[]): void;
     panTo(p: LatLng): void;
-    setLevel(level: number): void;
+    setLevel(level: number, opts?: { anchor?: LatLng; animate?: boolean }): void;
+    getLevel(): number;
     relayout(): void;
   }
   class Size {
@@ -38,11 +39,15 @@ declare namespace kakao.maps {
     setPosition(p: LatLng): void;
   }
   class MarkerClusterer {
-    constructor(opts: { map: Map; averageCenter?: boolean; minLevel?: number; minClusterSize?: number; styles?: Record<string, string>[] });
+    constructor(opts: { map: Map; averageCenter?: boolean; minLevel?: number; minClusterSize?: number; disableClickZoom?: boolean; styles?: Record<string, string>[] });
     addMarkers(markers: Marker[]): void;
     clear(): void;
   }
+  interface Cluster {
+    getMarkers(): Marker[];
+    getCenter(): LatLng;
+  }
   namespace event {
-    function addListener(target: object, type: string, handler: () => void): void;
+    function addListener(target: object, type: string, handler: (arg?: unknown) => void): void;
   }
 }

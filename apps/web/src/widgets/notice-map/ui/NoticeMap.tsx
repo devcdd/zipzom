@@ -50,8 +50,15 @@ export function NoticeMap({
   const map = useRef<kakao.maps.Map | null>(null);
   const clusterer = useRef<kakao.maps.MarkerClusterer | null>(null);
   const overlay = useRef<kakao.maps.CustomOverlay | null>(null);
+  const markerData = useRef(new Map<kakao.maps.Marker, MapMarker>());
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
+  const openBubble = (m: MapMarker, pos: kakao.maps.LatLng) => {
+    overlay.current?.setMap(null);
+    overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10, clickable: true });
+    overlay.current.setMap(map.current);
+    onSelectRef.current?.(m.noticeId);
+  };
   const markersRef = useRef<MapMarker[]>(markers);
   const onSelectRef = useRef(onSelect);
   useEffect(() => {
@@ -69,7 +76,22 @@ export function NoticeMap({
       () => {
         if (!alive || !el.current) return;
         map.current = new kakao.maps.Map(el.current, { center: new kakao.maps.LatLng(36.5, 127.8), level: 13 });
-        clusterer.current = new kakao.maps.MarkerClusterer({ map: map.current, averageCenter: true, minLevel: 7, minClusterSize: 1, styles: CLUSTER_STYLES });
+        clusterer.current = new kakao.maps.MarkerClusterer({ map: map.current, averageCenter: true, minLevel: 7, minClusterSize: 1, disableClickZoom: true, styles: CLUSTER_STYLES });
+        // 단지 1곳짜리 클러스터는 한 단계씩이 아니라 개별 마커가 보이는 레벨(6)까지 바로 확대하고 말풍선을 연다
+        kakao.maps.event.addListener(clusterer.current, 'clusterclick', (arg) => {
+          const cluster = arg as kakao.maps.Cluster;
+          const marks = cluster.getMarkers();
+          if (marks.length === 1) {
+            // 클러스터 평균 중심이 아니라 그 단지 실좌표로 확대해야 엉뚱한 곳으로 안 튄다
+            const m = markerData.current.get(marks[0]);
+            const pos = m ? new kakao.maps.LatLng(m.lat, m.lng) : cluster.getCenter();
+            map.current!.setLevel(6, { anchor: pos });
+            map.current!.panTo(pos);
+            if (m) openBubble(m, pos);
+          } else {
+            map.current!.setLevel(Math.max(1, map.current!.getLevel() - 2), { anchor: cluster.getCenter() });
+          }
+        });
         kakao.maps.event.addListener(map.current, 'click', () => overlay.current?.setMap(null));
         setStatus('ready');
       },
@@ -88,18 +110,15 @@ export function NoticeMap({
     if (status !== 'ready' || !map.current || !clusterer.current) return;
     overlay.current?.setMap(null);
     clusterer.current.clear();
+    markerData.current.clear();
     const bounds = new kakao.maps.LatLngBounds();
     const image = greenDot();
     const kakaoMarkers = markersRef.current.map((m) => {
       const pos = new kakao.maps.LatLng(m.lat, m.lng);
       bounds.extend(pos);
       const marker = new kakao.maps.Marker({ position: pos, title: m.name, image });
-      kakao.maps.event.addListener(marker, 'click', () => {
-        overlay.current?.setMap(null);
-        overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10, clickable: true });
-        overlay.current.setMap(map.current);
-        onSelectRef.current?.(m.noticeId);
-      });
+      markerData.current.set(marker, m);
+      kakao.maps.event.addListener(marker, 'click', () => openBubble(m, pos));
       return marker;
     });
     clusterer.current.addMarkers(kakaoMarkers);

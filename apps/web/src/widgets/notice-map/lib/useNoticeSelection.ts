@@ -16,9 +16,9 @@ export function useNoticeSelection() {
   }, []);
 
   // NoticeMap의 마커 생성 effect 의존성이라 매 렌더 새 함수를 넘기면 마커가 다시 그려진다
+  // 스크롤 대신 목록에서 선택 카드를 맨 위로 올린다(정렬은 각 목록이 selectedId로 처리)
   const selectFromMap = useCallback((noticeId: number) => {
     setSelectedId(noticeId);
-    document.getElementById(`notice-${noticeId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
   return { focus, selectedId, showOnMap, selectFromMap };

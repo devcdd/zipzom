@@ -29,6 +29,8 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
     [filters.phase, picked, q],
   );
 
+  const ordered = data ? [...data.items].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId)) : [];
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -38,7 +40,7 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
       <PageState loading={loading} error={error} empty={data?.items.length === 0} emptyMessage="조건에 맞는 공고가 없어요.">
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
           <div className="grid gap-3">
-            {data?.items.map((n) => (
+            {ordered.map((n) => (
               <NoticeCard
                 key={n.id}
                 notice={n}
