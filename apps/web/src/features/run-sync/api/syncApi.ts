@@ -1,16 +1,5 @@
 import { request } from '@/shared/api';
 
-export interface SyncReport {
-  myhome: { fetched: number; notices: number; error?: string };
-  sh: { fetched: number; notices: number; error?: string };
-  lhArea: { updated: number; error?: string };
-  lhExtract: { attempted: number; error?: string };
-  hug: { fetched: number; notices: number; error?: string };
-  lh: { fetched: number; notices: number; error?: string };
-  merge: { linked: number };
-  geocode: { attempted: number; resolved: number; error?: string };
-}
-
 export interface SyncRun {
   source: string;
   startedAt: string;
@@ -20,7 +9,13 @@ export interface SyncRun {
   error: string | null;
 }
 
+export interface SyncStatus {
+  running: boolean;
+  runs: SyncRun[];
+}
+
 export const syncApi = {
-  run: () => request<SyncReport>('/admin/sync', { method: 'POST' }),
-  last: () => request<SyncRun[]>('/admin/sync/last'),
+  /** 즉시 반환. 서버가 백그라운드로 끝까지 돈다 */
+  run: () => request<{ started: boolean; running: boolean }>('/admin/sync', { method: 'POST' }),
+  status: () => request<SyncStatus>('/admin/sync/last'),
 };

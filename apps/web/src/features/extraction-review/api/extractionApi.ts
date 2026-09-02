@@ -1,4 +1,4 @@
-import { request } from '@/shared/api';
+import { qs, request } from '@/shared/api';
 
 export interface HouseGroup {
   code: string;
@@ -50,7 +50,8 @@ const post = (noticeId: number, action: 'approve' | 'reject' | 'retry', body?: o
   request<unknown>(`/admin/extractions/${noticeId}/${action}`, { method: 'POST', body: body && JSON.stringify(body) });
 
 export const extractionApi = {
-  list: () => request<Extraction[]>('/admin/extractions'),
+  list: (q: { status?: Extraction['status']; limit: number; offset: number }) =>
+    request<{ total: number; items: Extraction[] }>(`/admin/extractions?${qs({ status: q.status, limit: String(q.limit), offset: String(q.offset) })}`),
   approve: (noticeId: number, houses: ExtractedHouse[], eligibility: ExtractedEligibility[]) => post(noticeId, 'approve', { houses, eligibility }),
   reject: (noticeId: number) => post(noticeId, 'reject'),
   retry: (noticeId: number) => post(noticeId, 'retry'),

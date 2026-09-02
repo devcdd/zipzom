@@ -336,15 +336,62 @@ function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () =
   );
 }
 
+const LIMIT = 20;
+const FILTERS: { key: Extraction['status'] | 'ALL'; label: string }[] = [
+  { key: 'ALL', label: '전체' },
+  { key: 'PENDING', label: '검수 대기' },
+  { key: 'APPROVED', label: '승인' },
+  { key: 'REJECTED', label: '반려' },
+  { key: 'FAILED', label: '실패' },
+];
+
 export function ExtractionReview() {
-  const list = useAsync(() => extractionApi.list(), []);
+  const [status, setStatus] = useState<Extraction['status'] | 'ALL'>('ALL');
+  const [offset, setOffset] = useState(0);
+  const list = useAsync(() => extractionApi.list({ status: status === 'ALL' ? undefined : status, limit: LIMIT, offset }), [status, offset]);
+  const total = list.data?.total ?? 0;
+
   return (
-    <PageState loading={list.loading && !list.data} error={list.error} empty={list.data?.length === 0} emptyMessage="추출된 공고가 없어요. 동기화 후 SH·LH 공고가 들어오면 여기 쌓여요.">
-      <div className="flex flex-col gap-3">
-        {list.data?.map((item) => (
-          <ExtractionCard key={`${item.noticeId}-${item.status}-${item.createdAt}`} item={item} onChanged={list.reload} />
-        ))}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-1 rounded-md bg-surface-2 p-0.5 text-xs">
+          {FILTERS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => {
+                setStatus(f.key);
+                setOffset(0);
+              }}
+              className={`rounded px-2.5 py-1 font-medium transition-colors ${status === f.key ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {list.data && (
+          <span className="text-xs text-muted">
+            {total === 0 ? 0 : offset + 1}–{Math.min(offset + LIMIT, total)} / {total}
+          </span>
+        )}
       </div>
-    </PageState>
+      <PageState loading={list.loading && !list.data} error={list.error} empty={list.data?.items.length === 0} emptyMessage="해당 상태의 추출이 없어요. 동기화 후 SH·LH 공고가 들어오면 여기 쌓여요.">
+        <div className="flex flex-col gap-3">
+          {list.data?.items.map((item) => (
+            <ExtractionCard key={`${item.noticeId}-${item.status}-${item.createdAt}`} item={item} onChanged={list.reload} />
+          ))}
+        </div>
+      </PageState>
+      {total > LIMIT && (
+        <div className="flex justify-end gap-1">
+          <button type="button" className="btn-ghost px-2.5 py-1 text-xs" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>
+            이전
+          </button>
+          <button type="button" className="btn-ghost px-2.5 py-1 text-xs" disabled={offset + LIMIT >= total} onClick={() => setOffset(offset + LIMIT)}>
+            다음
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

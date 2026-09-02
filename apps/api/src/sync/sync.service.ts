@@ -53,6 +53,10 @@ export class SyncService implements OnModuleInit {
     }
   }
 
+  get isRunning() {
+    return this.running !== null;
+  }
+
   /** 어드민 수동 트리거와 스케줄이 겹치면 진행 중인 실행을 공유한다. */
   runAll(): Promise<SyncReport> {
     this.running ??= this.doRunAll().finally(() => (this.running = null));
@@ -347,8 +351,8 @@ export class SyncService implements OnModuleInit {
     }
   }
 
-  /** LH 행복주택 공고문 자격 추출. 마이홈 단지 정보는 그대로 두고 자격·배정 계층만 뽑는다. 회당 5건 */
-  async extractLh(limit = 5) {
+  /** LH 행복주택 공고문 자격 추출. 마이홈 단지 정보는 그대로 두고 자격·배정 계층만 뽑는다. 백그라운드라 회당 30건 */
+  async extractLh(limit = 30) {
     if (!this.extraction.enabled) return { attempted: 0 };
     try {
       const ids = await this.extraction.pendingLhNoticeIds(limit);

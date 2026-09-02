@@ -54,18 +54,22 @@ export class AdminController {
     return { columns, rows, total: total!.c };
   }
 
+  /** 즉시 응답하고 서버가 끝까지 돈다 (추출까지 수십 분). 진행 상황은 sync/last 폴링 */
   @Post('sync')
   runSync() {
-    return this.sync.runAll();
+    const started = !this.sync.isRunning;
+    void this.sync.runAll().catch(() => {});
+    return { started, running: true };
   }
 
-  /** 소스별 마지막 실행. 진행 중이면 finishedAt null */
+  /** 소스별 마지막 실행 + 전체 실행 중 여부. 추출·지오코딩은 sync_runs에 안 남으니 running으로 판단 */
   @Get('sync/last')
-  lastSync() {
-    return this.db.query(
+  async lastSync() {
+    const runs = await this.db.query(
       `select distinct on (source) source, started_at as "startedAt", finished_at as "finishedAt", fetched, upserted, error
        from sync_runs order by source, started_at desc`,
     );
+    return { running: this.sync.isRunning, runs };
   }
 
   /** 자동 병합된 중복 공고 쌍. 대표(canonical)만 목록에 노출되고 duplicate는 숨겨진 상태다. */
@@ -89,8 +93,9 @@ export class AdminController {
   }
 
   @Get('extractions')
-  extractions() {
-    return this.extraction.list();
+  extractions(@Query() query: Record<string, string>) {
+    const f = parse(pageSchema.extend({ status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'FAILED']).optional() }), query);
+    return this.extraction.list({ status: f.status ?? null, limit: f.limit, offset: f.offset });
   }
 
   /** 검수 화면에서 고친 표를 그대로 받아 반영한 뒤, 새 단지 좌표를 바로 찍는다. */

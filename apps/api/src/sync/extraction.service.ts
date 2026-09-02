@@ -105,13 +105,18 @@ export class ExtractionService {
     return undefined;
   }
 
-  list(): Promise<Extraction[]> {
-    return this.db.query<Extraction>(
+  async list(f: { status?: Extraction['status'] | null; limit: number; offset: number }): Promise<{ total: number; items: Extraction[] }> {
+    const rows = await this.db.query<Extraction & { total: number }>(
       `select e.notice_id as "noticeId", n.source, n.title, n.detail_url as "detailUrl", e.pdf_url as "pdfUrl", e.pdf_name as "pdfName",
-         e.model, e.status, e.houses, e.eligibility, e.error, e.created_at as "createdAt", e.reviewed_at as "reviewedAt"
+         e.model, e.status, e.houses, e.eligibility, e.error, e.created_at as "createdAt", e.reviewed_at as "reviewedAt",
+         count(*) over()::int as total
        from notice_extractions e join notices n on n.id = e.notice_id
-       order by case e.status when 'PENDING' then 0 when 'FAILED' then 1 else 2 end, e.created_at desc`,
+       where ($1::extraction_status is null or e.status = $1)
+       order by case e.status when 'PENDING' then 0 when 'FAILED' then 1 else 2 end, e.created_at desc
+       limit $2 offset $3`,
+      [f.status ?? null, f.limit, f.offset],
     );
+    return { total: rows[0]?.total ?? 0, items: rows.map(({ total: _t, ...e }) => e) };
   }
 
   /**

@@ -1,48 +1,61 @@
-import { useState } from 'react';
-import { syncApi, type SyncReport } from '../api/syncApi';
+import { useEffect, useRef, useState } from 'react';
+import { syncApi } from '../api/syncApi';
 
-const SOURCES = [
-  ['마이홈', 'myhome'],
-  ['SH', 'sh'],
-  ['HUG', 'hug'],
-  ['LH', 'lh'],
-] as const;
+const POLL_MS = 4000;
 
-export function SyncButton({ onDone }: { onDone?: (r: SyncReport) => void }) {
-  const [busy, setBusy] = useState(false);
-  const [report, setReport] = useState<SyncReport | null>(null);
+/**
+ * 동기화 시작 후 서버 상태를 폴링한다. 브라우저를 닫아도 서버는 계속 돌고, 다시 열면 진행 중 표시가 이어진다.
+ * 끝나면 onDone — 테이블·검수 목록을 새로 읽는 용도
+ */
+export function SyncButton({ onDone }: { onDone?: () => void }) {
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const startedAt = useRef<number | null>(null);
 
-  const run = async () => {
-    setBusy(true);
+  useEffect(() => {
+    let alive = true;
+    const tick = async () => {
+      try {
+        const s = await syncApi.status();
+        if (!alive) return;
+        if (s.running && startedAt.current === null) startedAt.current = Date.now();
+        if (!s.running && running) {
+          startedAt.current = null;
+          onDone?.();
+        }
+        setRunning(s.running);
+        setElapsed(startedAt.current ? Math.round((Date.now() - startedAt.current) / 1000) : 0);
+      } catch {
+        /* 폴링 실패는 다음 틱에 재시도 */
+      }
+    };
+    void tick();
+    const id = setInterval(tick, POLL_MS);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running]);
+
+  const start = async () => {
     setError(null);
     try {
-      const r = await syncApi.run();
-      setReport(r);
-      onDone?.(r);
+      await syncApi.run();
+      startedAt.current = Date.now();
+      setRunning(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
     }
   };
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <button type="button" className="btn-primary" onClick={run} disabled={busy}>
-        {busy ? '동기화 중…' : '지금 동기화'}
+      <button type="button" className="btn-primary" onClick={start} disabled={running}>
+        {running ? `동기화 중… ${elapsed}s` : '지금 동기화'}
       </button>
-      {report && (
-        <span className="text-xs text-muted">
-          {SOURCES.map(([label, key]) => (
-            <span key={key}>
-              {label} {report[key].notices}건{report[key].error && ` (오류: ${report[key].error})`} ·{' '}
-            </span>
-          ))}
-          병합 {report.merge.linked}건 · 자격추출 {report.lhExtract.attempted}건{report.lhExtract.error && ` (중단: ${report.lhExtract.error})`} · 좌표 {report.geocode.resolved}/{report.geocode.attempted}
-          {report.geocode.error && ` (중단: ${report.geocode.error})`}
-        </span>
-      )}
+      {running && <span className="text-xs text-muted">수집 → 병합 → 면적 → 자격 추출 → 좌표 순. 브라우저를 닫아도 서버가 계속 돌아요.</span>}
       {error && <span className="text-xs text-danger">{error}</span>}
     </div>
   );
