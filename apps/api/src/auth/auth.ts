@@ -55,16 +55,26 @@ export function readCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
-export const cookieOptions = (maxAgeMs: number) => ({
+/**
+ * 브라우저가 보는 origin. 호스트 nginx가 X-Forwarded-Proto/Host를 붙이고, dev는 vite 프록시가 Host를 그대로 넘긴다.
+ * env로 고정하면 배포 환경마다 틀어지기 쉬워 요청에서 읽는다
+ */
+export function requestOrigin(req: Request): string {
+  const proto = (req.get('x-forwarded-proto') ?? req.protocol).split(',')[0].trim();
+  const host = req.get('x-forwarded-host') ?? req.get('host');
+  return `${proto}://${host}`;
+}
+
+export const cookieOptions = (req: Request, maxAgeMs: number) => ({
   httpOnly: true,
   sameSite: 'lax' as const,
-  secure: (process.env.WEB_ORIGIN ?? '').startsWith('https'),
+  secure: requestOrigin(req).startsWith('https'),
   path: '/',
   maxAge: maxAgeMs,
 });
 
-export const setSession = (res: Response, user: Omit<SessionUser, 'isAdmin'>) =>
-  res.cookie(SESSION_COOKIE, issueToken(user), cookieOptions(SESSION_DAYS * 86_400_000));
+export const setSession = (req: Request, res: Response, user: Omit<SessionUser, 'isAdmin'>) =>
+  res.cookie(SESSION_COOKIE, issueToken(user), cookieOptions(req, SESSION_DAYS * 86_400_000));
 
 export const currentUser = (req: Request): SessionUser | null => verifyToken(readCookie(req, SESSION_COOKIE));
 

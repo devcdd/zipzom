@@ -2,12 +2,11 @@ import { BadRequestException, Controller, Get, Post, Query, Req, Res } from '@ne
 import { randomBytes } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { Db } from '../db.js';
-import { cookieOptions, CurrentUser, readCookie, SESSION_COOKIE, setSession, type SessionUser } from './auth.js';
+import { cookieOptions, CurrentUser, readCookie, requestOrigin, SESSION_COOKIE, setSession, type SessionUser } from './auth.js';
 
 const STATE_COOKIE = 'zz_oauth_state';
-const webOrigin = () => process.env.WEB_ORIGIN ?? 'http://localhost:5173';
-// 브라우저가 보는 origin 기준. dev는 vite 프록시(/api → 3000)를 거치므로 카카오 콘솔에도 5173 주소로 등록
-const redirectUri = () => `${webOrigin()}/api/auth/kakao/callback`;
+// 카카오 콘솔에 등록한 Redirect URI와 글자 단위로 같아야 한다 (dev: localhost:5173, 운영: 도메인)
+const redirectUri = (req: Request) => `${requestOrigin(req)}/api/auth/kakao/callback`;
 
 @Controller('auth')
 export class AuthController {
@@ -26,13 +25,13 @@ export class AuthController {
 
   /** 카카오 인가 페이지로. state는 CSRF 방지용 1회성 쿠키 */
   @Get('kakao')
-  kakao(@Res() res: Response) {
+  kakao(@Req() req: Request, @Res() res: Response) {
     const state = randomBytes(16).toString('base64url');
-    res.cookie(STATE_COOKIE, state, cookieOptions(10 * 60_000));
+    res.cookie(STATE_COOKIE, state, cookieOptions(req, 10 * 60_000));
     const url = new URL('https://kauth.kakao.com/oauth/authorize');
     url.search = new URLSearchParams({
       client_id: process.env.KAKAO_REST_API_KEY!,
-      redirect_uri: redirectUri(),
+      redirect_uri: redirectUri(req),
       response_type: 'code',
       state,
     }).toString();
@@ -41,14 +40,14 @@ export class AuthController {
 
   @Get('kakao/callback')
   async callback(@Req() req: Request, @Res() res: Response, @Query('code') code?: string, @Query('state') state?: string, @Query('error') error?: string) {
-    if (error) return res.redirect(`${webOrigin()}/#/?login=denied`);
+    if (error) return res.redirect(`${requestOrigin(req)}/#/?login=denied`);
     if (!code || !state || state !== readCookie(req, STATE_COOKIE)) throw new BadRequestException('잘못된 로그인 요청');
     res.clearCookie(STATE_COOKIE, { path: '/' });
 
     const form = new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: process.env.KAKAO_REST_API_KEY!,
-      redirect_uri: redirectUri(),
+      redirect_uri: redirectUri(req),
       code,
     });
     if (process.env.KAKAO_CLIENT_SECRET) form.set('client_secret', process.env.KAKAO_CLIENT_SECRET);
@@ -76,8 +75,8 @@ export class AuthController {
        returning id, email, nickname`,
       [String(me.id), email, me.kakao_account?.profile?.nickname ?? null],
     ))!;
-    setSession(res, user);
-    res.redirect(`${webOrigin()}/#/`);
+    setSession(req, res, user);
+    res.redirect(`${requestOrigin(req)}/#/`);
   }
 }
 
