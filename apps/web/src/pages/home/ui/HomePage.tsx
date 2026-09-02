@@ -1,26 +1,26 @@
 import { useState } from 'react';
 import { matchApi } from '@/entities/match';
 import { NoticeCard } from '@/entities/notice';
+import { useProfile } from '@/entities/profile';
 import { regionApi } from '@/entities/region';
-import { getUserId } from '@/entities/user';
+import { useSession } from '@/entities/user';
 import { useAsync, withinDays } from '@/shared/lib';
 import { PageState } from '@/shared/ui';
 import { EligibilitySummary } from '@/widgets/eligibility-summary';
 import { NoticeFeed } from '@/widgets/notice-feed';
-import { NoticeMap, noticesToMarkers, type MapFocus } from '@/widgets/notice-map';
+import { NoticeMap, noticesToMarkers, useNoticeSelection } from '@/widgets/notice-map';
 
 type Mode = 'matches' | 'all';
 
-const scrollToNotice = (noticeId: number) => {
-  document.getElementById(`notice-${noticeId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-};
-
 export function HomePage() {
-  const userId = getUserId();
-  const [mode, setMode] = useState<Mode>(userId ? 'matches' : 'all');
-  const [focus, setFocus] = useState<MapFocus | null>(null);
+  const { me, loading: sessionLoading } = useSession();
+  const { profile, loading: profileLoading } = useProfile(sessionLoading ? undefined : !!me);
+  const [mode, setMode] = useState<Mode | null>(null);
+  // 프로필 확인 전엔 탭을 고정하지 않는다. 있으면 내 매칭, 없으면 전체 공고
+  const effectiveMode: Mode = mode ?? (profile ? 'matches' : 'all');
+  const { focus, selectedId, showOnMap, selectFromMap } = useNoticeSelection();
   const regions = useAsync(() => regionApi.list(), []);
-  const matches = useAsync(() => (userId && mode === 'matches' ? matchApi.get(userId) : Promise.resolve(null)), [userId, mode]);
+  const matches = useAsync(() => (profile && effectiveMode === 'matches' ? matchApi.evaluate(profile) : Promise.resolve(null)), [profile, effectiveMode]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -37,9 +37,9 @@ export function HomePage() {
               key={m}
               type="button"
               role="radio"
-              aria-checked={mode === m}
+              aria-checked={effectiveMode === m}
               onClick={() => setMode(m)}
-              className={`rounded px-3 py-1 transition-colors ${mode === m ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`}
+              className={`rounded px-3 py-1 transition-colors ${effectiveMode === m ? 'bg-ink text-white' : 'text-muted hover:text-ink'}`}
             >
               {label}
             </button>
@@ -47,9 +47,9 @@ export function HomePage() {
         </div>
       </div>
 
-      {mode === 'all' && <NoticeFeed regions={regions.data} />}
+      {effectiveMode === 'all' && <NoticeFeed regions={regions.data} />}
 
-      {mode === 'matches' && !userId && (
+      {effectiveMode === 'matches' && !profileLoading && !profile && (
         <div className="card flex flex-col items-center gap-3 p-10 text-center">
           <p className="text-sm text-muted">나이·소득·지역 조건을 등록하면 자격에 맞는 공고만 골라 보여드려요.</p>
           <a href="#/profile" className="btn-primary">
@@ -58,7 +58,7 @@ export function HomePage() {
         </div>
       )}
 
-      {mode === 'matches' && userId && (
+      {effectiveMode === 'matches' && profile && (
         <PageState loading={matches.loading} error={matches.error}>
           {matches.data && (
             <>
@@ -72,13 +72,13 @@ export function HomePage() {
                     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
                       <div className="grid gap-3">
                         {matches.data.notices.map((n) => (
-                          <NoticeCard key={n.id} notice={n} isNew={withinDays(n.matchedAt, 3)} onShowMap={() => setFocus({ noticeId: n.id, at: Date.now() })} />
+                          <NoticeCard key={n.id} notice={n} isNew={withinDays(n.matchedAt, 3)} selected={selectedId === n.id} onShowMap={() => showOnMap(n.id)} />
                         ))}
                       </div>
                       <NoticeMap
                         markers={noticesToMarkers(matches.data.notices)}
                         focus={focus}
-                        onSelect={scrollToNotice}
+                        onSelect={selectFromMap}
                         className="order-first h-80 lg:order-none lg:sticky lg:top-20 lg:h-[calc(100svh-7rem)]"
                       />
                     </div>
