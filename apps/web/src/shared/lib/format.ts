@@ -10,8 +10,14 @@ export const fmtWon = (n: number | null | undefined) =>
 export const fmtDate = (s: string | null | undefined) => (s ? s.slice(5).replace('-', '.') : '—');
 
 /** 임대조건 한 줄. HUG 든든전세처럼 월세가 없는 공고는 '전세 보증금'으로 쓴다. */
-export const fmtRent = (deposit: number | null | undefined, monthlyRent: number | null | undefined) =>
-  !deposit && !monthlyRent ? null : !monthlyRent ? `전세 보증금 ${fmtWon(deposit)}` : `보증금 ${fmtWon(deposit)} · 월 ${fmtWon(monthlyRent)}`;
+/**
+ * 임대조건 한 줄. 월세 0은 전세가 아니라 데이터 누락인 경우가 많아(기숙사·마이홈 일부) 전세 표기는 공급유형이 전세일 때만
+ */
+export const fmtRent = (deposit: number | null | undefined, monthlyRent: number | null | undefined, jeonse = false) => {
+  if (!deposit && !monthlyRent) return null;
+  if (!monthlyRent) return jeonse ? `전세 보증금 ${fmtWon(deposit)}` : `보증금 ${fmtWon(deposit)} · 월 —`;
+  return `보증금 ${fmtWon(deposit)} · 월 ${fmtWon(monthlyRent)}`;
+};
 
 export const dday = (end: string | null | undefined) => {
   if (!end) return null;

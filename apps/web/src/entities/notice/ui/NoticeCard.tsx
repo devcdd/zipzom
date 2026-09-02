@@ -115,7 +115,7 @@ export function NoticeCard({
                 <span className="text-muted">
                   {[h.supplyCount ? `${h.supplyCount}호 모집` : h.totalHouseholds ? `${h.totalHouseholds}세대` : null, fmtArea(h.areaMin, h.areaMax)].filter(Boolean).join(' · ')}
                 </span>
-                <span className="ml-auto whitespace-nowrap">{fmtRent(h.minDeposit, h.minMonthlyRent) ?? <span className="text-muted">임대조건 공고문 참조</span>}</span>
+                <span className="ml-auto whitespace-nowrap">{fmtRent(h.minDeposit, h.minMonthlyRent, n.supplyType === '든든전세') ?? <span className="text-muted">임대조건 공고문 참조</span>}</span>
               </span>
             </li>
           ))}

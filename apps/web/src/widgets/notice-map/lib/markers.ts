@@ -26,7 +26,7 @@ export function noticesToMarkers(notices: Notice[]): MapMarker[] {
         name: h.name ?? h.address ?? n.title,
         noticeTitle: n.title,
         detailUrl: n.detailUrl,
-        rentText: fmtRent(h.minDeposit, h.minMonthlyRent),
+        rentText: fmtRent(h.minDeposit, h.minMonthlyRent, n.supplyType === '든든전세'),
       })),
   );
 }
