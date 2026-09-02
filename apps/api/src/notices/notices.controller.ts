@@ -9,7 +9,7 @@ const csv = z
   .transform((s) => (s ? s.split(',').filter(Boolean) : null));
 
 const querySchema = z.object({
-  supplyType: z.string().optional(),
+  supplyType: csv,
   phase: csv.pipe(z.array(z.enum(['upcoming', 'open', 'closed'])).nullable()),
   sigungu: csv,
   sido: csv,
@@ -26,7 +26,7 @@ export class NoticesController {
   list(@Query() query: Record<string, string>) {
     const f = parse(querySchema, query);
     return this.notices.list({
-      supplyType: f.supplyType ?? null,
+      supplyTypes: f.supplyType,
       phases: f.phase,
       sigunguCodes: f.sigungu,
       sidoCodes: f.sido,

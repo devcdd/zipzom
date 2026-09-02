@@ -4,7 +4,7 @@ const today = new Date(2026, 8, 1);
 const base = 3_813_363; // 1인 100%
 
 const youth: Rule = {
-  code: 'YOUTH', label: '청년', minAge: 19, maxAge: 39, requiresUnmarried: true, marriageWithinYears: null, childMaxAge: null,
+  code: 'YOUTH', supplyType: '행복주택', label: '청년', minAge: 19, maxAge: 39, requiresUnmarried: true, marriageWithinYears: null, childMaxAge: null,
   incomePct: 100, dualIncomePct: null, bonusPct1p: 20, bonusPct2p: 10, assetLimit: 251_000_000, carLimit: 45_420_000, maxResidenceYears: 10,
 };
 const newlywed: Rule = { ...youth, code: 'NEWLYWED', label: '신혼', minAge: null, maxAge: null, requiresUnmarried: false, marriageWithinYears: 7, childMaxAge: 6, dualIncomePct: 120, assetLimit: 345_000_000 };
@@ -24,6 +24,20 @@ describe('matcher', () => {
   it('만 나이: 생일 경계가 하루 밀리지 않는다', () => {
     expect(ageOn('1995-03-13', new Date(2026, 2, 12))).toBe(30);
     expect(ageOn('1995-03-13', new Date(2026, 2, 13))).toBe(31);
+  });
+
+  it('든든전세: 조건 컬럼이 비면 무주택만 본다', () => {
+    const jeonse: Rule = {
+      code: 'HUG_JEONSE', supplyType: '든든전세', label: 'HUG 든든전세', minAge: null, maxAge: null,
+      requiresUnmarried: false, marriageWithinYears: null, childMaxAge: null, incomePct: null, dualIncomePct: null,
+      bonusPct1p: 20, bonusPct2p: 10, assetLimit: null, carLimit: null, maxResidenceYears: 8,
+    };
+    // 소득·자산이 행복주택 기준을 한참 넘겨도 통과해야 한다
+    const rich = { ...single, householdMonthlyIncome: 20_000_000, totalAssets: 900_000_000, carValue: 90_000_000 };
+    const r = evaluate(rich, jeonse, base, today);
+    expect(r.ok).toBe(true);
+    expect(r.checks.map((c) => c.label)).toEqual(['무주택']);
+    expect(evaluate({ ...rich, isHomeless: false }, jeonse, base, today).ok).toBe(false);
   });
 
   it('청년: 1인 가구 20%p 가산으로 소득 통과', () => {

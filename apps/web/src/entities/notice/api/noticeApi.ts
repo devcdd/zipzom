@@ -2,7 +2,7 @@ import { qs, request } from '@/shared/api';
 import type { Notice, Phase } from '../model/types';
 
 export interface NoticeQuery {
-  supplyType?: string;
+  supplyTypes?: string[];
   phase?: Phase[];
   sigungu?: string[];
   sido?: string[];
@@ -15,7 +15,7 @@ export const noticeApi = {
   list: (query: NoticeQuery) =>
     request<{ total: number; items: Notice[] }>(
       `/notices?${qs({
-        supplyType: query.supplyType,
+        supplyType: query.supplyTypes?.join(','),
         phase: query.phase?.join(','),
         sigungu: query.sigungu?.join(','),
         sido: query.sido?.join(','),

@@ -1,4 +1,5 @@
 import type { Notice } from '@/entities/notice';
+import { fmtRent } from '@/shared/lib';
 
 export interface MapMarker {
   key: string;
@@ -23,13 +24,7 @@ export function noticesToMarkers(notices: Notice[]): MapMarker[] {
         name: h.name ?? h.address ?? n.title,
         noticeTitle: n.title,
         detailUrl: n.detailUrl,
-        rentText:
-          h.minDeposit || h.minMonthlyRent
-            ? `보증금 ${fmt(h.minDeposit)} · 월 ${fmt(h.minMonthlyRent)}`
-            : null,
+        rentText: fmtRent(h.minDeposit, h.minMonthlyRent),
       })),
   );
 }
-
-const fmt = (n: number | null) =>
-  n == null || n === 0 ? '—' : n >= 100_000_000 ? `${(n / 100_000_000).toFixed(1).replace(/\.0$/, '')}억` : `${Math.round(n / 10_000).toLocaleString('ko-KR')}만`;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { Evaluation } from '@/entities/match';
 
-/** 계층별 자격 판정. 칩을 누르면 항목별 근거. */
+/** 공급유형·계층별 자격 판정. 칩을 누르면 항목별 근거. */
 export function EligibilitySummary({ evaluations }: { evaluations: Evaluation[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const passed = evaluations.filter((e) => e.ok);
@@ -13,10 +13,10 @@ export function EligibilitySummary({ evaluations }: { evaluations: Evaluation[] 
         <h2 className="text-sm font-semibold">
           {passed.length > 0 ? (
             <>
-              <span className="text-brand">{passed.map((e) => e.label).join(' · ')}</span> 계층으로 지원 가능
+              <span className="text-brand">{passed.map((e) => e.label).join(' · ')}</span> 자격으로 지원 가능
             </>
           ) : (
-            '현재 조건으로 지원 가능한 계층이 없어요'
+            '현재 조건으로 지원 가능한 공고가 없어요'
           )}
         </h2>
         <a href="#/profile" className="text-xs text-brand hover:underline">

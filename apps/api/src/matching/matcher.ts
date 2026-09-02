@@ -18,6 +18,8 @@ export interface Profile {
 
 export interface Rule {
   code: string;
+  /** 이 규칙을 통과하면 열리는 notices.supply_type */
+  supplyType: string;
   label: string;
   minAge: number | null;
   maxAge: number | null;

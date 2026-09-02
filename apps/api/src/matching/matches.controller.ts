@@ -21,7 +21,7 @@ export class MatchesController {
   async evaluate(@Body() body: unknown, @CurrentUser() user: SessionUser | null) {
     const profile = parse(profileSchema, body);
     const rules = await this.db.query<Rule>(
-      `select code, label, min_age as "minAge", max_age as "maxAge", requires_unmarried as "requiresUnmarried",
+      `select code, supply_type as "supplyType", label, min_age as "minAge", max_age as "maxAge", requires_unmarried as "requiresUnmarried",
          marriage_within_years as "marriageWithinYears", child_max_age as "childMaxAge", income_pct as "incomePct",
          dual_income_pct as "dualIncomePct", bonus_pct_1p as "bonusPct1p", bonus_pct_2p as "bonusPct2p",
          asset_limit as "assetLimit", car_limit as "carLimit", max_residence_years as "maxResidenceYears"
@@ -35,13 +35,15 @@ export class MatchesController {
     const evaluations = rules.map((r) => evaluate(profile, r, base?.amount ?? 0));
     const matchedRules = evaluations.filter((e) => e.ok).map((e) => e.code);
     if (matchedRules.length === 0) return { eligible: false, evaluations, notices: [] };
+    // 규칙마다 열어주는 공급유형이 다르다. 행복주택 6계층에 다 걸려도 든든전세는 무주택이면 따로 열린다
+    const supplyTypes = [...new Set(rules.filter((r) => matchedRules.includes(r.code)).map((r) => r.supplyType))];
 
     // 'XX000'은 시도 전체 선택. 관심 지역이 없으면 거주 시도
     const sigungu = profile.preferredSigunguCodes.filter((c) => !c.endsWith('000'));
     const sido = profile.preferredSigunguCodes.filter((c) => c.endsWith('000')).map((c) => c.slice(0, 2));
     const scoped = sigungu.length + sido.length > 0;
     const { items } = await this.notices.list({
-      supplyType: '행복주택',
+      supplyTypes,
       phases: ['open', 'upcoming'],
       sigunguCodes: scoped ? sigungu : null,
       sidoCodes: scoped ? sido : [profile.sidoCode],

@@ -20,7 +20,7 @@ export interface House {
 
 export interface Notice {
   id: number;
-  source: 'MYHOME' | 'LH' | 'SH';
+  source: 'MYHOME' | 'LH' | 'SH' | 'HUG';
   sourceId: string;
   title: string;
   institution: string | null;
@@ -38,11 +38,12 @@ export interface Notice {
 }
 
 export interface ListFilter {
-  supplyType?: string | null;
+  supplyTypes?: string[] | null;
   phases?: Phase[] | null;
   sigunguCodes?: string[] | null; // 5자리 시군구
   sidoCodes?: string[] | null; // 2자리 시도 (시군구와 OR)
   q?: string | null;
+  ids?: number[] | null; // 북마크 목록 등 특정 공고만
   limit: number;
   offset: number;
 }
@@ -84,17 +85,18 @@ export class NoticesService {
            'lat', nh.lat, 'lng', nh.lng) order by nh.id) as houses
          from notice_houses nh where nh.notice_id = n.id
        ) h on true
-       where ($1::text is null or n.supply_type = $1)
+       where ($1::text[] is null or n.supply_type = any($1))
          and ($2::text[] is null or n.phase = any($2))
          and (($3::text[] is null and $4::text[] is null) or exists (
                select 1 from notice_houses nh where nh.notice_id = n.id
                  and (nh.sigungu_code = any(coalesce($3, '{}')) or nh.sido_code = any(coalesce($4, '{}')))))
          and ($5::text is null or n.title ilike '%' || $5 || '%'
               or exists (select 1 from notice_houses nh where nh.notice_id = n.id and nh.name ilike '%' || $5 || '%'))
+         and ($8::bigint[] is null or n.id = any($8))
        order by case n.phase when 'open' then 0 when 'upcoming' then 1 else 2 end,
          n.apply_end_on asc nulls last, n.posted_on desc, n.id desc
        limit $6 offset $7`,
-      [f.supplyType ?? null, f.phases ?? null, f.sigunguCodes ?? null, f.sidoCodes ?? null, f.q?.trim() || null, f.limit, f.offset],
+      [f.supplyTypes ?? null, f.phases ?? null, f.sigunguCodes ?? null, f.sidoCodes ?? null, f.q?.trim() || null, f.limit, f.offset, f.ids ?? null],
     );
     const total = rows[0]?.total ?? 0;
     return { total, items: rows.map(({ total: _t, ...n }) => n) };

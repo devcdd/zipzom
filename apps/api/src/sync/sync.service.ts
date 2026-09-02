@@ -2,10 +2,13 @@ import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { Db } from '../db.js';
 import { ExtractionService } from './extraction.service.js';
 import { geocode } from './geocoder.js';
+import { fetchHugJeonseRows, groupHugNotices, hugEnabled } from './hug.client.js';
 import { fetchMyhomeNotices, type MyhomeItem } from './myhome.client.js';
 import { fetchShHappyHouseNotices, parseShNotice } from './sh-rss.client.js';
 
 const DAY = 86_400_000;
+// HUG는 공고별 상세 URL을 API로 주지 않아 목록 페이지로 보낸다
+const HUG_LIST_URL = 'https://www.khug.or.kr/jeonse/web/s09/s090101.jsp';
 const ymd = (s: string) => (/^\d{8}$/.test(s) ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6)}` : null);
 const num = (v: number | string | null | undefined) => (v === '' || v == null ? null : Number(v));
 const yyyymm = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -13,6 +16,7 @@ const yyyymm = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padSta
 export interface SyncReport {
   myhome: { fetched: number; notices: number; error?: string };
   sh: { fetched: number; notices: number; error?: string };
+  hug: { fetched: number; notices: number; error?: string };
   geocode: { attempted: number; resolved: number; error?: string };
 }
 
@@ -50,13 +54,14 @@ export class SyncService implements OnModuleInit {
     const report: SyncReport = {
       myhome: await this.tracked('MYHOME', () => this.syncMyhome()),
       sh: await this.tracked('SH', () => this.syncSh()),
+      hug: await this.tracked('HUG', () => this.syncHug()),
       geocode: await this.geocodeMissing(),
     };
     this.log.log(`sync done ${JSON.stringify(report)}`);
     return report;
   }
 
-  private async tracked(source: 'MYHOME' | 'SH', fn: () => Promise<{ fetched: number; notices: number }>) {
+  private async tracked(source: 'MYHOME' | 'SH' | 'HUG', fn: () => Promise<{ fetched: number; notices: number }>) {
     const run = (await this.db.one<{ id: number }>(`insert into sync_runs (source) values ($1) returning id`, [source]))!;
     try {
       const r = await fn();
@@ -155,6 +160,40 @@ export class SyncService implements OnModuleInit {
       if (this.extraction.enabled) await this.extraction.extractIfMissing(notice.id, it.link);
     }
     return { fetched: items.length, notices: items.length };
+  }
+
+  /**
+   * HUG 든든전세. 모집기간에만 데이터가 있고 끝나면 API에서 사라지므로 지난 공고는 DB에 남은 것으로 유지한다.
+   * 응답이 (공고 × 주택) 평면 행이고 주소·단지명이 없어 시군구 단위로 묶어 1행씩 넣는다.
+   */
+  async syncHug() {
+    if (!hugEnabled()) return { fetched: 0, notices: 0 };
+    const rows = await fetchHugJeonseRows();
+    const notices = groupHugNotices(rows);
+    for (const n of notices) {
+      const notice = (await this.db.one<{ id: number }>(
+        `insert into notices (source, source_id, title, institution, supply_type, status, posted_on,
+           apply_begin_on, apply_end_on, winner_announce_on, detail_url, raw)
+         values ('HUG', $1, $2, 'HUG', '든든전세', '공고', $3, $4, $5, $6, $7, $8)
+         on conflict (source, source_id) do update set title = excluded.title,
+           apply_begin_on = excluded.apply_begin_on, apply_end_on = excluded.apply_end_on,
+           winner_announce_on = excluded.winner_announce_on, raw = excluded.raw, updated_at = now()
+         returning id`,
+        [n.postedOn, n.title, n.postedOn, n.applyBeginOn, n.applyEndOn, n.winnerAnnounceOn, HUG_LIST_URL, JSON.stringify(n.raw)],
+      ))!;
+      for (const a of n.areas) {
+        // 주소가 '서울 강남구' 수준뿐이라 좌표·시군구코드는 기존 지오코딩 단계가 채운다
+        await this.db.query(
+          `insert into notice_houses (notice_id, house_sn, name, address, supply_count, min_deposit)
+           values ($1, $2, $3, $3, $4, $5)
+           on conflict (notice_id, house_sn) do update set
+             name = excluded.name, address = excluded.address,
+             supply_count = excluded.supply_count, min_deposit = excluded.min_deposit`,
+          [notice.id, a.key, a.address, a.supplyCount, a.minDeposit],
+        );
+      }
+    }
+    return { fetched: rows.length, notices: notices.length };
   }
 
   /** 좌표 없는 단지만 지오코딩. 카카오 인증 오류(카카오맵 미활성화 등)는 첫 실패에서 중단. */
