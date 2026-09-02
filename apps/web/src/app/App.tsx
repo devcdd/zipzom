@@ -28,6 +28,12 @@ export function App() {
         <main className="mx-auto w-full max-w-6xl flex-1 overflow-x-hidden px-5 py-6">
           <Page key={path.startsWith('/me') ? '/me' : path} />
         </main>
+        <footer className="mx-auto w-full max-w-6xl px-5 pb-4 pt-2 text-[11px] text-muted">
+          Contact ·{' '}
+          <a href="mailto:developer.cdd@gmail.com" className="hover:text-ink hover:underline">
+            developer.cdd@gmail.com
+          </a>
+        </footer>
         <BottomNav path={path} />
       </div>
     </SessionProvider>
