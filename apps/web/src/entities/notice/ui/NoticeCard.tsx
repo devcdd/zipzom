@@ -39,7 +39,7 @@ export function NoticeCard({
       aria-current={selected ? 'true' : undefined}
       className={`card flex flex-col gap-3 p-5 scroll-mt-20 transition-colors ${selected ? 'card-selected' : ''}`}
     >
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
         <Tag tone="ink">{n.institution ?? n.source}</Tag>
         {n.supplyType && <Tag>{n.supplyType}</Tag>}
         {n.houseType && <Tag>{n.houseType}</Tag>}
