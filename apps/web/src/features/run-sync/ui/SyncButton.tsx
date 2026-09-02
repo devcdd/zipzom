@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { syncApi, type SyncReport } from '../api/syncApi';
 
+const SOURCES = [
+  ['마이홈', 'myhome'],
+  ['SH', 'sh'],
+  ['HUG', 'hug'],
+] as const;
+
 export function SyncButton({ onDone }: { onDone?: (r: SyncReport) => void }) {
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<SyncReport | null>(null);
@@ -27,8 +33,12 @@ export function SyncButton({ onDone }: { onDone?: (r: SyncReport) => void }) {
       </button>
       {report && (
         <span className="text-xs text-muted">
-          마이홈 {report.myhome.notices}건{report.myhome.error && ` (오류: ${report.myhome.error})`} · SH {report.sh.notices}건
-          {report.sh.error && ` (오류: ${report.sh.error})`} · 좌표 {report.geocode.resolved}/{report.geocode.attempted}
+          {SOURCES.map(([label, key]) => (
+            <span key={key}>
+              {label} {report[key].notices}건{report[key].error && ` (오류: ${report[key].error})`} ·{' '}
+            </span>
+          ))}
+          좌표 {report.geocode.resolved}/{report.geocode.attempted}
           {report.geocode.error && ` (중단: ${report.geocode.error})`}
         </span>
       )}
