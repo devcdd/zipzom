@@ -175,6 +175,8 @@ create table notice_houses (
   lng               double precision,
   geocode_failed_at timestamptz,          -- 지오코딩 결과 없음. 재시도 제외
   eligible_groups   text[],               -- 이 단지에 배정된 계층 코드 (공고문 추출). null = 미상
+  area_min          numeric(8,2),         -- 전용면적 ㎡ 최소~최대 (LH 상세 DDO_AR · HUG 전용면적 · SH 공고문)
+  area_max          numeric(8,2),
   unique (notice_id, house_sn)
 );
 

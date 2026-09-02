@@ -4,7 +4,7 @@ import { ExtractionService } from './extraction.service.js';
 import { planMerges, type DedupeRow } from './dedupe.js';
 import { geocode } from './geocoder.js';
 import { fetchHugJeonseRows, groupHugNotices, hugEnabled } from './hug.client.js';
-import { fetchLhDetail, fetchLhNotices, lhDate, lhEnabled, type LhNotice } from './lh.client.js';
+import { fetchLhComplexes, fetchLhDetail, fetchLhNotices, lhDate, lhEnabled, parseArea, parseLhParams, type LhNotice } from './lh.client.js';
 import { fetchMyhomeNotices, type MyhomeItem } from './myhome.client.js';
 import { fetchShHappyHouseNotices, parseShNotice } from './sh-rss.client.js';
 
@@ -20,6 +20,7 @@ const yyyymm = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padSta
 export interface SyncReport {
   myhome: { fetched: number; notices: number; error?: string };
   sh: { fetched: number; notices: number; error?: string };
+  lhArea: { updated: number; error?: string };
   lhExtract: { attempted: number; error?: string };
   hug: { fetched: number; notices: number; error?: string };
   lh: { fetched: number; notices: number; error?: string };
@@ -61,6 +62,7 @@ export class SyncService implements OnModuleInit {
     const report: SyncReport = {
       myhome: await this.tracked('MYHOME', () => this.syncMyhome()),
       sh: await this.tracked('SH', () => this.syncSh()),
+      lhArea: await this.enrichLhAreas(),
       lhExtract: await this.extractLh(),
       hug: await this.tracked('HUG', () => this.syncHug()),
       lh: await this.tracked('LH', () => this.syncLh()),
@@ -194,12 +196,13 @@ export class SyncService implements OnModuleInit {
       for (const a of n.areas) {
         // 주소가 '서울 강남구' 수준뿐이라 좌표·시군구코드는 기존 지오코딩 단계가 채운다
         await this.db.query(
-          `insert into notice_houses (notice_id, house_sn, name, address, supply_count, min_deposit)
-           values ($1, $2, $3, $3, $4, $5)
+          `insert into notice_houses (notice_id, house_sn, name, address, supply_count, min_deposit, area_min, area_max)
+           values ($1, $2, $3, $3, $4, $5, $6, $7)
            on conflict (notice_id, house_sn) do update set
              name = excluded.name, address = excluded.address,
-             supply_count = excluded.supply_count, min_deposit = excluded.min_deposit`,
-          [notice.id, a.key, a.address, a.supplyCount, a.minDeposit],
+             supply_count = excluded.supply_count, min_deposit = excluded.min_deposit,
+             area_min = excluded.area_min, area_max = excluded.area_max`,
+          [notice.id, a.key, a.address, a.supplyCount, a.minDeposit, a.areaMin, a.areaMax],
         );
       }
     }
@@ -214,6 +217,7 @@ export class SyncService implements OnModuleInit {
   async syncLh() {
     if (!lhEnabled()) return { fetched: 0, notices: 0 };
     const all = await fetchLhNotices();
+    this.lhSpl = new Map(all.map((n) => [n.PAN_ID, n.SPL_INF_TP_CD]));
     const items = all.filter((n) => SUPPLY_TYPES.includes(n.AIS_TP_CD_NM));
 
     for (const n of items) {
@@ -260,11 +264,12 @@ export class SyncService implements OnModuleInit {
       for (const [i, c] of detail.complexes.entries()) {
         const address = [c.LGDN_ADR, c.LGDN_DTL_ADR].map((v) => v?.trim()).filter(Boolean).join(' ') || null;
         await this.db.query(
-          `insert into notice_houses (notice_id, house_sn, name, address, total_households)
-           values ($1, $2, $3, $4, $5)
+          `insert into notice_houses (notice_id, house_sn, name, address, total_households, area_min, area_max)
+           values ($1, $2, $3, $4, $5, $6, $7)
            on conflict (notice_id, house_sn) do update set
-             name = excluded.name, address = excluded.address, total_households = excluded.total_households`,
-          [noticeId, String(i), c.LCC_NT_NM?.trim() || null, address, Number(c.HSH_CNT) || null],
+             name = excluded.name, address = excluded.address, total_households = excluded.total_households,
+             area_min = coalesce(excluded.area_min, notice_houses.area_min), area_max = coalesce(excluded.area_max, notice_houses.area_max)`,
+          [noticeId, String(i), c.LCC_NT_NM?.trim() || null, address, Number(c.HSH_CNT) || null, parseArea(c.DDO_AR)?.min ?? null, parseArea(c.DDO_AR)?.max ?? null],
         );
       }
     } catch (e) {
@@ -293,6 +298,47 @@ export class SyncService implements OnModuleInit {
       await this.db.query(`update notices set duplicate_of = $2 where id = $1 and not merge_ignored`, [l.duplicateId, l.canonicalId]);
     }
     return { linked: links.length };
+  }
+
+  private lhSpl = new Map<string, string>();
+
+  /**
+   * 마이홈 API엔 면적이 없다. LH 링크가 있는 공고는 상세 API dsSbd.DDO_AR로 단지 면적을 채운다.
+   * 단지명 부분일치. 색인(lhSpl)은 같은 실행의 syncLh가 만든 것을 쓴다
+   */
+  async enrichLhAreas(limit = 30) {
+    if (!lhEnabled() || this.lhSpl.size === 0) return { updated: 0 };
+    let updated = 0;
+    try {
+      const targets = await this.db.query<{ id: number; url: string | null }>(
+        `select n.id, coalesce(n.raw->>'url', n.raw->>'DTL_URL') as url from notices n
+         where n.institution = 'LH' and n.duplicate_of is null
+           and exists (select 1 from notice_houses h where h.notice_id = n.id and h.area_min is null)
+         order by n.posted_on desc limit $1`,
+        [limit],
+      );
+      for (const t of targets) {
+        const k = parseLhParams(t.url);
+        const spl = k && this.lhSpl.get(k.panId);
+        if (!k || !spl) continue;
+        for (const c of await fetchLhComplexes(k, spl)) {
+          const a = parseArea(c.DDO_AR);
+          const name = c.LCC_NT_NM?.replace(/\s+/g, '');
+          if (!a || !name) continue;
+          const r = await this.db.query(
+            `update notice_houses set area_min = $3, area_max = $4 where notice_id = $1 and area_min is null
+               and (replace(name, ' ', '') ilike '%' || $2 || '%' or $2 ilike '%' || replace(name, ' ', '') || '%') returning id`,
+            [t.id, name, a.min, a.max],
+          );
+          updated += r.length;
+        }
+      }
+      return { updated };
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e);
+      this.log.warn(`lh area enrich stopped: ${error}`);
+      return { updated, error };
+    }
   }
 
   /** LH 행복주택 공고문 자격 추출. 마이홈 단지 정보는 그대로 두고 자격·배정 계층만 뽑는다. 회당 5건 */

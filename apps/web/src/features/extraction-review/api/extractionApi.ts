@@ -12,6 +12,8 @@ export interface ExtractedHouse {
   totalHouseholds: number | null;
   minDeposit: number | null;
   minMonthlyRent: number | null;
+  areaMin: number | null;
+  areaMax: number | null;
   groups: HouseGroup[];
 }
 

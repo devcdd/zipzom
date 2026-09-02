@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fmtDate, fmtRent, fmtWon } from '@/shared/lib';
+import { fmtArea, fmtDate, fmtRent, fmtWon } from '@/shared/lib';
 import { Tag } from '@/shared/ui';
 import { groupLabel } from '../lib/groups';
 import { PHASE } from '../lib/phase';
@@ -99,7 +99,7 @@ export function NoticeCard({
                 ))}
               </span>
               <span className="whitespace-nowrap text-right text-muted">
-                {h.supplyCount ? `${h.supplyCount}호` : h.totalHouseholds ? `${h.totalHouseholds}세대` : ''}
+                {[h.supplyCount ? `${h.supplyCount}호 모집` : h.totalHouseholds ? `${h.totalHouseholds}세대` : null, fmtArea(h.areaMin, h.areaMax)].filter(Boolean).join(' · ')}
               </span>
               <span className="truncate text-muted">{h.address ?? ''}</span>
               <span className="whitespace-nowrap text-right">

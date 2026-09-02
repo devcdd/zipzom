@@ -17,6 +17,8 @@ export interface House {
   lat: number | null;
   lng: number | null;
   eligibleGroups: string[] | null;
+  areaMin: number | null; // 전용면적 ㎡
+  areaMax: number | null;
 }
 
 export interface NoticeEligibility {
@@ -100,7 +102,8 @@ export class NoticesService {
            'sidoCode', nh.sido_code, 'sigunguCode', nh.sigungu_code,
            'totalHouseholds', nh.total_households, 'supplyCount', nh.supply_count,
            'minDeposit', nh.min_deposit, 'minMonthlyRent', nh.min_monthly_rent,
-           'lat', nh.lat, 'lng', nh.lng, 'eligibleGroups', nh.eligible_groups) order by nh.id) as houses
+           'lat', nh.lat, 'lng', nh.lng, 'eligibleGroups', nh.eligible_groups,
+           'areaMin', nh.area_min, 'areaMax', nh.area_max) order by nh.id) as houses
          from notice_houses nh where nh.notice_id = n.id
        ) h on true
        left join lateral (

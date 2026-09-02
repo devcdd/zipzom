@@ -20,6 +20,8 @@ const SH_COLS: HouseCol[] = [
   { key: 'totalHouseholds', label: '총세대', num: true },
   { key: 'minDeposit', label: '최저 보증금(원)', num: true },
   { key: 'minMonthlyRent', label: '최저 월세(원)', num: true },
+  { key: 'areaMin', label: '면적 최소(㎡)', num: true },
+  { key: 'areaMax', label: '면적 최대(㎡)', num: true },
 ];
 const LH_COLS: HouseCol[] = [
   { key: 'name', label: '단지명 (마이홈 단지명과 부분일치로 매칭)' },
@@ -38,7 +40,7 @@ const ELIG_COLS: EligCol[] = [
   { key: 'carLimit', label: '자동차(만원)', num: true, width: 'w-24', manwon: true },
 ];
 
-const EMPTY_HOUSE: ExtractedHouse = { name: '', address: null, supplyCount: null, totalHouseholds: null, minDeposit: null, minMonthlyRent: null, groups: [] };
+const EMPTY_HOUSE: ExtractedHouse = { name: '', address: null, supplyCount: null, totalHouseholds: null, minDeposit: null, minMonthlyRent: null, areaMin: null, areaMax: null, groups: [] };
 const EMPTY_ELIG: ExtractedEligibility = { code: 'OTHER', label: '', ageMin: null, ageMax: null, incomePct: null, dualIncomePct: null, assetLimit: null, carLimit: null, exempt: [], conditions: [] };
 const EXEMPT: { key: string; label: string }[] = [
   { key: 'income', label: '소득 배제' },
@@ -51,7 +53,7 @@ const numOrNull = (raw: string) => (raw === '' ? null : Number(raw));
 /** 원문 PDF 옆에서 자격 기준·단지 표를 셀 단위로 고쳐 승인. 승인 전엔 아무것도 반영되지 않는다 */
 function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () => void }) {
   // 스키마 확장 전에 저장된 행은 groups·exempt·conditions가 없다
-  const [houses, setHouses] = useState<ExtractedHouse[]>((item.houses ?? []).map((h) => ({ ...h, groups: h.groups ?? [] })));
+  const [houses, setHouses] = useState<ExtractedHouse[]>((item.houses ?? []).map((h) => ({ ...h, groups: h.groups ?? [], areaMin: h.areaMin ?? null, areaMax: h.areaMax ?? null })));
   const [elig, setElig] = useState<ExtractedEligibility[]>((item.eligibility ?? []).map((e) => ({ ...e, exempt: e.exempt ?? [], conditions: e.conditions ?? [] })));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

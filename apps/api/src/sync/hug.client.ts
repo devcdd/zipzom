@@ -53,7 +53,7 @@ export interface HugNotice {
   winnerAnnounceOn: string | null;
   title: string;
   /** 시군구 단위 묶음. HUG는 주소·단지명을 주지 않아 지역명이 유일한 위치 정보다 */
-  areas: { key: string; address: string; supplyCount: number; minDeposit: number | null }[];
+  areas: { key: string; address: string; supplyCount: number; minDeposit: number | null; areaMin: number | null; areaMax: number | null }[];
   raw: HugJeonseRow[];
 }
 
@@ -75,15 +75,20 @@ export function groupHugNotices(rows: HugJeonseRow[]): HugNotice[] {
   }
 
   return [...byNotice].map(([postedRaw, group]) => {
-    const areas = new Map<string, { key: string; address: string; supplyCount: number; minDeposit: number | null }>();
+    const areas = new Map<string, { key: string; address: string; supplyCount: number; minDeposit: number | null; areaMin: number | null; areaMax: number | null }>();
     for (const r of group) {
       const sido = (r.지역구분명 ?? '').trim();
       const sigungu = (r.지역상세구분코드명 ?? '').trim();
       const address = [sido, sigungu].filter(Boolean).join(' ');
       if (!address) continue;
       const deposit = won(r['임대보증금액(원)']);
-      const hit = areas.get(address) ?? { key: address, address, supplyCount: 0, minDeposit: null };
+      const hit = areas.get(address) ?? { key: address, address, supplyCount: 0, minDeposit: null, areaMin: null, areaMax: null };
       hit.supplyCount += 1;
+      const area = Number(String(r['전용면적(제곱미터)'] ?? '').replace(/[^\d.]/g, ''));
+      if (area > 0) {
+        hit.areaMin = hit.areaMin == null ? area : Math.min(hit.areaMin, area);
+        hit.areaMax = hit.areaMax == null ? area : Math.max(hit.areaMax, area);
+      }
       if (deposit != null) hit.minDeposit = hit.minDeposit == null ? deposit : Math.min(hit.minDeposit, deposit);
       areas.set(address, hit);
     }

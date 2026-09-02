@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lhDate, parseLhParams, pickLhNoticePdf } from './lh.client.js';
+import { lhDate, parseArea, parseLhParams, pickLhNoticePdf } from './lh.client.js';
 
 describe('lh.client', () => {
   it('청약플러스 상세 링크에서 상세 API 파라미터를 뽑는다', () => {
@@ -26,5 +26,12 @@ describe('lh.client', () => {
     ];
     expect(pickLhNoticePdf(files)?.url).toBe('u2');
     expect(pickLhNoticePdf([files[0]])).toBeUndefined();
+  });
+
+  it('전용면적 표기를 ㎡ 범위로 읽는다', () => {
+    expect(parseArea('26.95~44.68')).toEqual({ min: 26.95, max: 44.68 });
+    expect(parseArea('36.78')).toEqual({ min: 36.78, max: 36.78 });
+    expect(parseArea('')).toBeNull();
+    expect(parseArea(undefined)).toBeNull();
   });
 });

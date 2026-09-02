@@ -128,9 +128,9 @@ export class ExtractionService {
         await q(`delete from notice_houses where notice_id = $1`, [noticeId]);
         for (const [i, h] of houses.entries()) {
           await q(
-            `insert into notice_houses (notice_id, house_sn, name, address, sido_code, total_households, supply_count, min_deposit, min_monthly_rent, eligible_groups)
-             values ($1, $2, $3, $4, '11', $5, $6, $7, $8, $9)`,
-            [noticeId, String(i + 1), h.name, h.address, h.totalHouseholds, h.supplyCount, h.minDeposit, h.minMonthlyRent, groupsOf(h)],
+            `insert into notice_houses (notice_id, house_sn, name, address, sido_code, total_households, supply_count, min_deposit, min_monthly_rent, eligible_groups, area_min, area_max)
+             values ($1, $2, $3, $4, '11', $5, $6, $7, $8, $9, $10, $11)`,
+            [noticeId, String(i + 1), h.name, h.address, h.totalHouseholds, h.supplyCount, h.minDeposit, h.minMonthlyRent, groupsOf(h), h.areaMin, h.areaMax],
           );
         }
       } else {

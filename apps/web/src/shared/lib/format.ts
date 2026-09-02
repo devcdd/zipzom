@@ -32,3 +32,14 @@ export const ageOn = (birthDate: string, today = new Date()) => {
   if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
   return age;
 };
+
+/** 전용면적 ㎡ 범위 → "26~45㎡ · 8~14평". 1평 = 3.3058㎡ */
+export const fmtArea = (min: number | null | undefined, max: number | null | undefined) => {
+  if (min == null && max == null) return null;
+  const lo = min ?? max!;
+  const hi = max ?? min!;
+  const py = (m: number) => Math.round(m / 3.3058);
+  const m2 = lo === hi ? `${Math.round(lo)}㎡` : `${Math.round(lo)}~${Math.round(hi)}㎡`;
+  const p = py(lo) === py(hi) ? `${py(lo)}평` : `${py(lo)}~${py(hi)}평`;
+  return `${m2} · ${p}`;
+};

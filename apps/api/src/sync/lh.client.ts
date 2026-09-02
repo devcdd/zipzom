@@ -54,6 +54,13 @@ export interface LhDetail {
   files: LhFile[];
 }
 
+/** "26.95~44.68" · "36.78" → ㎡ 범위. 못 읽으면 null */
+export function parseArea(s: string | null | undefined): { min: number; max: number } | null {
+  const nums = (s ?? '').match(/\d+(?:\.\d+)?/g)?.map(Number).filter((n) => n > 0);
+  if (!nums?.length) return null;
+  return { min: Math.min(...nums), max: Math.max(...nums) };
+}
+
 export const lhEnabled = () => !!process.env.DATA_GO_KR_SERVICE_KEY;
 
 /** '2026.08.31' → '2026-08-31'. 빈 값·형식 불일치는 null */
@@ -138,6 +145,11 @@ export async function fetchLhDetail(n: LhNotice): Promise<LhDetail> {
     complexes: (d.dsSbd as LhComplex[] | undefined) ?? [],
     files: toFiles(d.dsAhflInfo ?? []),
   };
+}
+
+/** 단지 목록만 (마이홈 공고의 면적 보강용) */
+export async function fetchLhComplexes(k: LhPanKey, splInfTpCd: string): Promise<LhComplex[]> {
+  return ((await fetchDetailRaw(k, splInfTpCd)).dsSbd as LhComplex[] | undefined) ?? [];
 }
 
 /** 첨부 목록만 (마이홈 공고 경로용) */

@@ -15,6 +15,8 @@ export const extractedHouseSchema = z.object({
   totalHouseholds: int,
   minDeposit: int,
   minMonthlyRent: int,
+  areaMin: z.number().nullable().default(null), // 전용면적 ㎡
+  areaMax: z.number().nullable().default(null),
   groups: z.array(houseGroupSchema).default([]), // 단지별 계층 배정
 });
 export type ExtractedHouse = z.infer<typeof extractedHouseSchema>;
@@ -53,7 +55,7 @@ const jsonSchema = (withHouseDetail: boolean) => ({
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['name', 'address', 'supplyCount', 'totalHouseholds', 'minDeposit', 'minMonthlyRent', 'groups'],
+        required: ['name', 'address', 'supplyCount', 'totalHouseholds', 'minDeposit', 'minMonthlyRent', 'areaMin', 'areaMax', 'groups'],
         properties: {
           name: { type: 'string' },
           address: withHouseDetail ? { type: ['string', 'null'] } : { type: 'null' },
@@ -61,6 +63,8 @@ const jsonSchema = (withHouseDetail: boolean) => ({
           totalHouseholds: withHouseDetail ? nint : { type: 'null' },
           minDeposit: withHouseDetail ? nint : { type: 'null' },
           minMonthlyRent: withHouseDetail ? nint : { type: 'null' },
+          areaMin: withHouseDetail ? { type: ['number', 'null'] } : { type: 'null' },
+          areaMax: withHouseDetail ? { type: ['number', 'null'] } : { type: 'null' },
           groups: {
             type: 'array',
             items: { type: 'object', additionalProperties: false, required: ['code', 'supplyCount'], properties: { code: codeEnum, supplyCount: nint } },
@@ -105,8 +109,8 @@ ${GROUP_GUIDE}
 
 2) houses: 이번에 공급하는 단지 목록. 단지마다 name(단지명)${
     withHouseDetail
-      ? ', address(주소, 시도부터), supplyCount(공급호수 합계), totalHouseholds(총세대수), minDeposit(최저 임대보증금 원), minMonthlyRent(최저 월임대료 원)'
-      : ', supplyCount(공급호수 합계). address·totalHouseholds·minDeposit·minMonthlyRent는 null'
+      ? ', address(주소, 시도부터), supplyCount(공급호수 합계), totalHouseholds(총세대수), minDeposit(최저 임대보증금 원), minMonthlyRent(최저 월임대료 원), areaMin/areaMax(이번 공급 형별 전용면적 ㎡의 최소·최대, 소수 둘째자리)'
+      : ', supplyCount(공급호수 합계). address·totalHouseholds·minDeposit·minMonthlyRent·areaMin·areaMax는 null'
   }, groups(그 단지에 배정된 계층별 공급호수. 배정 없으면 빈 배열).
 신규공급·재공급으로 나뉘어도 같은 단지는 한 번만 넣고 호수는 합산.`;
 

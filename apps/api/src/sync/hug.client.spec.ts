@@ -16,8 +16,8 @@ describe('groupHugNotices', () => {
     expect(n!.winnerAnnounceOn).toBe('2026-08-28');
     expect(n!.title).toBe('HUG 든든전세주택 입주자 모집 공고 [2026.7.24]');
     expect(n!.areas).toEqual([
-      { key: '서울 강남구', address: '서울 강남구', supplyCount: 2, minDeposit: 250_000_000 },
-      { key: '인천 남동구', address: '인천 남동구', supplyCount: 1, minDeposit: 150_000_000 },
+      { key: '서울 강남구', address: '서울 강남구', supplyCount: 2, minDeposit: 250_000_000, areaMin: null, areaMax: null },
+      { key: '인천 남동구', address: '인천 남동구', supplyCount: 1, minDeposit: 150_000_000, areaMin: null, areaMax: null },
     ]);
   });
 

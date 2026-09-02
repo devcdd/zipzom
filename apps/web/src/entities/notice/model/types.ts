@@ -17,6 +17,8 @@ export interface House {
   lat: number | null;
   lng: number | null;
   eligibleGroups: string[] | null; // 이 단지에 배정된 계층 코드. null = 미상
+  areaMin: number | null; // 전용면적 ㎡
+  areaMax: number | null;
 }
 
 /** 공고문에서 뽑은 공고별 자격 기준 (계층 단위). 없으면 공통 규칙 */
