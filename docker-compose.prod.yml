@@ -1,0 +1,43 @@
+# 운영 스택 — ghcr.io 이미지 사용. 런타임 비밀값은 .env (.env.example의 "운영" 섹션 참고).
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: zipzom-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-zipzom}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-zipzom}
+      POSTGRES_DB: ${POSTGRES_DB:-zipzom}
+    volumes:
+      - zipzom-pg:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d:ro   # 첫 기동에만 schema.sql 적용. 이후 스키마 변경은 psql로 수동
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-zipzom}"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  api:
+    image: ghcr.io/${GH_OWNER}/zipzom-api:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-zipzom}:${POSTGRES_PASSWORD:-zipzom}@db:5432/${POSTGRES_DB:-zipzom}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8081}
+      SH_RSS_URL: ${SH_RSS_URL:-https://www.i-sh.co.kr/main/lay2/program/S1T294C295/www/rss/rssNoticeWrite.do}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.6-luna}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: ghcr.io/${GH_OWNER}/zipzom-web:latest
+    restart: unless-stopped
+    # 호스트 nginx가 80/443 종단 후 여기로 프록시. hiphouse가 8080이라 8081. 루프백만 바인드
+    ports:
+      - "127.0.0.1:8081:80"
+    depends_on:
+      - api
+
+volumes:
+  zipzom-pg:
