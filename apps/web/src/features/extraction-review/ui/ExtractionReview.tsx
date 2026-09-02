@@ -123,11 +123,18 @@ function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () =
               {busy ? '반영 중…' : `${pending ? '승인' : '수정 반영'} · 자격 ${elig.length}계층 · 단지 ${houses.length}`}
             </button>
           )}
-          {item.status !== 'APPROVED' && (
-            <button type="button" className="btn-ghost px-2.5 py-1 text-xs" disabled={busy} onClick={() => run(() => extractionApi.retry(item.noticeId))}>
-              {busy ? '추출 중…' : '다시 추출'}
-            </button>
-          )}
+          {/* 승인된 건도 재추출 가능. 결과는 검수 대기로 돌아가고, 승인 전까지 기존 반영값은 유지된다 */}
+          <button
+            type="button"
+            className="btn-ghost px-2.5 py-1 text-xs"
+            disabled={busy}
+            onClick={() => {
+              if (item.status === 'APPROVED' && !confirm('다시 추출하면 검수 대기로 돌아갑니다. 이미 반영된 값은 다시 승인하기 전까지 유지돼요.')) return;
+              void run(() => extractionApi.retry(item.noticeId));
+            }}
+          >
+            {busy ? '추출 중…' : '다시 추출'}
+          </button>
         </div>
       </div>
       {item.error && <p className="mt-2 font-mono text-xs text-danger">{item.error}</p>}
