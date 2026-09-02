@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdminController } from './admin/admin.controller.js';
+import { AuthController } from './auth/auth.controller.js';
 import { Db } from './db.js';
 import { MatchesController } from './matching/matches.controller.js';
 import { NoticesController } from './notices/notices.controller.js';
@@ -12,7 +13,7 @@ import { SyncService } from './sync/sync.service.js';
 
 // ponytail: 단일 모듈. 도메인이 커지면 feature module로 분리
 @Module({
-  controllers: [NoticesController, RegionsController, ProfilesController, MatchesController, AdminController],
+  controllers: [AuthController, NoticesController, RegionsController, ProfilesController, MatchesController, AdminController],
   providers: [Db, SyncService, ExtractionService, NoticesService, ProfilesService],
 })
 export class AppModule {}

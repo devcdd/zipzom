@@ -6,9 +6,12 @@ create type marital_status as enum ('SINGLE', 'MARRIED', 'ENGAGED'); -- ENGAGED 
 
 -- ───────────────────────── 사용자 · 주거조건 ─────────────────────────
 
+-- 카카오 로그인 사용자. 비로그인 프로필은 서버에 저장하지 않는다(브라우저 localStorage)
 create table users (
   id          uuid primary key default gen_random_uuid(),
-  email       text unique,                 -- ponytail: 로그인 없음. userId를 브라우저에 보관. 인증 붙일 때 not null
+  kakao_id    text unique,
+  email       text unique,                 -- 카카오 계정 이메일(필수 동의). ADMIN_EMAILS 판정 기준
+  nickname    text,
   created_at  timestamptz not null default now()
 );
 

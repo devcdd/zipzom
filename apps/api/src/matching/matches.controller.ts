@@ -1,21 +1,25 @@
-import { Controller, Get, Param, ParseUUIDPipe } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
+import { CurrentUser, type SessionUser } from '../auth/auth.js';
+import { parse } from '../validate.js';
 import { Db } from '../db.js';
 import { NoticesService } from '../notices/notices.service.js';
-import { ProfilesService } from '../profiles/profiles.service.js';
+import { profileSchema } from '../profiles/profiles.service.js';
 import { evaluate, type Rule } from './matcher.js';
 
 @Controller('matches')
 export class MatchesController {
   constructor(
     private readonly db: Db,
-    private readonly profiles: ProfilesService,
     private readonly notices: NoticesService,
   ) {}
 
-  /** 계층 자격은 공고와 무관하게 프로필로 결정되고, 공고는 유형·모집 중·관심 지역으로 거른다. */
-  @Get(':userId')
-  async get(@Param('userId', ParseUUIDPipe) userId: string) {
-    const profile = await this.profiles.get(userId);
+  /**
+   * 계층 자격은 공고와 무관하게 프로필로 결정되고, 공고는 유형·모집 중·관심 지역으로 거른다.
+   * 프로필은 본문으로 받는다 — 비로그인은 localStorage 프로필로도 판정 가능. NEW 배지용 매칭 이력은 로그인 시에만 기록
+   */
+  @Post()
+  async evaluate(@Body() body: unknown, @CurrentUser() user: SessionUser | null) {
+    const profile = parse(profileSchema, body);
     const rules = await this.db.query<Rule>(
       `select code, label, min_age as "minAge", max_age as "maxAge", requires_unmarried as "requiresUnmarried",
          marriage_within_years as "marriageWithinYears", child_max_age as "childMaxAge", income_pct as "incomePct",
@@ -46,13 +50,13 @@ export class MatchesController {
     });
 
     const matchedAt = new Map<number, string>();
-    if (items.length) {
+    if (items.length && user) {
       const rows = await this.db.query<{ notice_id: number; matched_at: Date }>(
         `insert into user_notice_matches (user_id, notice_id, matched_rules)
          select $1, unnest($2::bigint[]), $3::text[]
          on conflict (user_id, notice_id) do update set matched_rules = excluded.matched_rules
          returning notice_id, matched_at`,
-        [userId, items.map((n) => n.id), matchedRules],
+        [user.id, items.map((n) => n.id), matchedRules],
       );
       for (const r of rows) matchedAt.set(r.notice_id, r.matched_at.toISOString());
     }

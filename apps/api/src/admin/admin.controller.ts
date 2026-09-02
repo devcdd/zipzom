@@ -1,4 +1,5 @@
-import { Body, Controller, Get, NotFoundException, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, ParseIntPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { AdminGuard } from '../auth/auth.js';
 import { z } from 'zod';
 import { Db } from '../db.js';
 import { ExtractionService } from '../sync/extraction.service.js';
@@ -11,8 +12,9 @@ const pageSchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 
-// ponytail: 인증 없음. 로컬 개인용 전제. 외부 공개 시 최소 basic auth 가드 필요
+// ADMIN_EMAILS에 있는 카카오 계정만
 @Controller('admin')
+@UseGuards(AdminGuard)
 export class AdminController {
   constructor(
     private readonly db: Db,

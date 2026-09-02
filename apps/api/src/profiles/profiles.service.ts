@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { Db } from '../db.js';
 import type { Profile } from '../matching/matcher.js';
@@ -47,34 +47,26 @@ const values = (p: ProfileInput) => [
 export class ProfilesService {
   constructor(private readonly db: Db) {}
 
-  async get(userId: string): Promise<StoredProfile> {
-    const p = await this.db.one<StoredProfile>(SELECT, [userId]);
-    if (!p) throw new NotFoundException('profile not found');
-    return p;
+  get(userId: string): Promise<StoredProfile | undefined> {
+    return this.db.one<StoredProfile>(SELECT, [userId]);
   }
 
-  async create(p: ProfileInput): Promise<{ userId: string }> {
-    const user = (await this.db.one<{ id: string }>(`insert into users default values returning id`))!;
+  async upsert(userId: string, p: ProfileInput): Promise<StoredProfile> {
     await this.db.query(
       `insert into user_profiles (user_id, birth_date, marital_status, married_at, children_count, youngest_child_birth_date,
          household_size, household_monthly_income, dual_income, is_homeless, total_assets, car_value, is_student,
          is_housing_benefit_recipient, sido_code, sigungu_code, preferred_sigungu_codes)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
-      [user.id, ...values(p)],
-    );
-    return { userId: user.id };
-  }
-
-  async update(userId: string, p: ProfileInput): Promise<StoredProfile> {
-    const row = await this.db.one(
-      `update user_profiles set birth_date = $2, marital_status = $3, married_at = $4, children_count = $5,
-         youngest_child_birth_date = $6, household_size = $7, household_monthly_income = $8, dual_income = $9,
-         is_homeless = $10, total_assets = $11, car_value = $12, is_student = $13, is_housing_benefit_recipient = $14,
-         sido_code = $15, sigungu_code = $16, preferred_sigungu_codes = $17, updated_at = now()
-       where user_id = $1 returning user_id`,
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+       on conflict (user_id) do update set birth_date = excluded.birth_date, marital_status = excluded.marital_status,
+         married_at = excluded.married_at, children_count = excluded.children_count,
+         youngest_child_birth_date = excluded.youngest_child_birth_date, household_size = excluded.household_size,
+         household_monthly_income = excluded.household_monthly_income, dual_income = excluded.dual_income,
+         is_homeless = excluded.is_homeless, total_assets = excluded.total_assets, car_value = excluded.car_value,
+         is_student = excluded.is_student, is_housing_benefit_recipient = excluded.is_housing_benefit_recipient,
+         sido_code = excluded.sido_code, sigungu_code = excluded.sigungu_code,
+         preferred_sigungu_codes = excluded.preferred_sigungu_codes, updated_at = now()`,
       [userId, ...values(p)],
     );
-    if (!row) throw new NotFoundException('profile not found');
-    return this.get(userId);
+    return (await this.get(userId))!;
   }
 }
