@@ -20,7 +20,7 @@ export function HomePage() {
   const [mode, setMode] = useState<Mode | null>(null);
   // 프로필 확인 전엔 탭을 고정하지 않는다. 있으면 내 매칭, 없으면 전체 공고
   const effectiveMode: Mode = mode ?? (profile ? 'matches' : 'all');
-  const { focus, selectedId, showOnMap, selectFromMap } = useNoticeSelection();
+  const { focus, selectedId, selectedHouseId, showOnMap, selectFromMap } = useNoticeSelection();
   const regions = useAsync(() => regionApi.list(), []);
   const matches = useAsync(() => (profile && effectiveMode === 'matches' ? matchApi.evaluate(profile) : Promise.resolve(null)), [profile, effectiveMode]);
 
@@ -79,6 +79,7 @@ export function HomePage() {
                             notice={n}
                             isNew={withinDays(n.matchedAt, 3)}
                             selected={selectedId === n.id}
+                            selectedHouseId={selectedId === n.id ? selectedHouseId : null}
                             bookmarked={bookmarks.ids.has(n.id)}
                             highlightGroups={n.matchedCodes}
                             onToggleBookmark={() => bookmarks.toggle(n.id)}

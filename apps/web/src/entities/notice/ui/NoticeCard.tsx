@@ -19,6 +19,7 @@ export function NoticeCard({
   notice: n,
   isNew,
   selected,
+  selectedHouseId,
   bookmarked,
   highlightGroups,
   onShowMap,
@@ -28,6 +29,7 @@ export function NoticeCard({
   notice: Notice;
   isNew?: boolean;
   selected?: boolean;
+  selectedHouseId?: number | null; // 지도에서 고른 단지 행 강조
   bookmarked?: boolean;
   highlightGroups?: string[]; // 내 매칭에서 통과한 계층 → 자격·배정 칩 강조
   onShowMap?: () => void;
@@ -55,7 +57,7 @@ export function NoticeCard({
         <NoticeTimeline notice={n} />
       </div>
       <div className="flex items-start gap-2">
-        <h3 className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-balance">
+        <h3 className={`min-w-0 flex-1 text-[15px] leading-snug text-balance ${selected ? 'font-bold text-brand' : 'font-semibold'}`}>
           {n.detailUrl ? (
             <a href={n.detailUrl} target="_blank" rel="noreferrer" className="hover:underline">
               {n.title}
@@ -94,11 +96,12 @@ export function NoticeCard({
             <li
               key={h.id}
               onClick={onShowHouse && h.lat != null ? () => onShowHouse(h.id) : undefined}
-              className={`flex flex-col gap-0.5 py-2 ${onShowHouse && h.lat != null ? 'cursor-pointer transition-colors hover:bg-surface-2/60' : ''}`}
+              aria-selected={selectedHouseId === h.id || undefined}
+              className={`flex flex-col gap-0.5 py-2 ${onShowHouse && h.lat != null ? 'cursor-pointer transition-colors hover:bg-surface-2/60' : ''} ${selectedHouseId === h.id ? 'house-selected' : ''}`}
             >
               {/* 단지명은 자르지 않는다. 이름 + 배정 계층이 첫 줄을 채우고 필요하면 줄바꿈 */}
               <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                <span className="font-medium">{h.name ?? h.address}</span>
+                <span className={`font-medium ${selectedHouseId === h.id ? 'text-brand' : ''}`}>{h.name ?? h.address}</span>
                 {h.eligibleGroups?.map((g) => (
                   <span key={g} className={`rounded px-1 text-[10px] leading-4 ${hit.has(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`}>
                     {groupLabel(g)}

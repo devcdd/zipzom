@@ -29,7 +29,7 @@ const CLUSTER_STYLES: Record<string, string>[] = [
   },
 ];
 
-/** 공고 단지 마커 지도. 마커 클릭 → 말풍선 + onSelect(noticeId). */
+/** 공고 단지 마커 지도. 마커 클릭 → 말풍선 + onSelect(noticeId, houseId). */
 export interface MapFocus {
   noticeId: number;
   houseId?: number; // 단지 행 클릭 시 그 단지만
@@ -44,7 +44,7 @@ export function NoticeMap({
 }: {
   markers: MapMarker[];
   focus?: MapFocus | null;
-  onSelect?: (noticeId: number) => void;
+  onSelect?: (noticeId: number, houseId: number) => void;
   className?: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
@@ -58,7 +58,7 @@ export function NoticeMap({
     overlay.current?.setMap(null);
     overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10, clickable: true });
     overlay.current.setMap(map.current);
-    onSelectRef.current?.(m.noticeId);
+    onSelectRef.current?.(m.noticeId, m.houseId);
   };
   const markersRef = useRef<MapMarker[]>(markers);
   const onSelectRef = useRef(onSelect);

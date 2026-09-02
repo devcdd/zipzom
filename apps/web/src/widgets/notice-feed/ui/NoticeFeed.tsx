@@ -13,7 +13,7 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
   const [filters, setFilters] = useState<NoticeFiltersValue>(DEFAULT_FILTERS);
   const { me, loading: sessionLoading } = useSession();
   const bookmarks = useBookmarks(sessionLoading ? undefined : !!me);
-  const { focus, selectedId, showOnMap, selectFromMap } = useNoticeSelection();
+  const { focus, selectedId, selectedHouseId, showOnMap, selectFromMap } = useNoticeSelection();
   const { regions: picked } = filters;
   const q = useDebounce(filters.q.trim(), 300);
   const { data, loading, error } = useAsync(
@@ -45,6 +45,7 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
                 key={n.id}
                 notice={n}
                 selected={selectedId === n.id}
+                selectedHouseId={selectedId === n.id ? selectedHouseId : null}
                 bookmarked={bookmarks.ids.has(n.id)}
                 onToggleBookmark={() => bookmarks.toggle(n.id)}
                 onShowMap={() => showOnMap(n.id)}

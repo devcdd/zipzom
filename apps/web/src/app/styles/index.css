@@ -28,4 +28,6 @@ body { @apply bg-ground text-ink antialiased; font-variant-numeric: tabular-nums
 .tag { @apply inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap; }
 .card { @apply rounded-xl border border-line bg-surface; }
 /* .card와 같은 레이어여야 bg-surface를 덮는다. 유틸리티 클래스로 넘기면 레이어 우선순위에 밀림 */
-.card-selected { @apply border-brand/50 bg-brand-soft; }
+.card-selected { @apply border-brand/40 bg-brand-soft/30 shadow-[inset_4px_0_0_0_var(--color-brand)]; }
+/* 지도에서 고른 단지 행. 카드 안에서 한 줄만 두드러져야 해서 인디케이터를 같이 쓴다 */
+.house-selected { @apply bg-brand-soft/60 shadow-[inset_3px_0_0_0_var(--color-brand)] -mx-2 px-2 rounded; }
