@@ -3,6 +3,7 @@ export interface GeoPoint {
   lng: number;
   bcode?: string; // 법정동코드 10자리
   sigunguName?: string; // 예: 강남구
+  regionName?: string; // 카카오 시도 표기 (표에 없는 신규 코드 대비)
   address?: string;
 }
 
@@ -19,7 +20,7 @@ async function kakao(path: string, query: string): Promise<GeoPoint | undefined>
   const d = documents[0];
   if (!d) return undefined;
   const a = d.address;
-  return { lat: Number(d.y), lng: Number(d.x), bcode: a?.b_code, sigunguName: a?.region_2depth_name || undefined, address: d.address_name };
+  return { lat: Number(d.y), lng: Number(d.x), bcode: a?.b_code, sigunguName: a?.region_2depth_name || undefined, regionName: a?.region_1depth_name || undefined, address: d.address_name };
 }
 
 // 주소 검색 → 실패 시 키워드(단지명) 검색. 신규 택지는 주소가 안 잡히는 경우가 있음

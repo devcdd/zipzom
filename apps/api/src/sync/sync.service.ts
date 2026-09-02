@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { Db } from '../db.js';
+import { SIDO_NAMES } from '../notices/sido.js';
 import { ExtractionService } from './extraction.service.js';
 import { planMerges, type DedupeRow } from './dedupe.js';
 import { geocode } from './geocoder.js';
@@ -373,12 +374,16 @@ export class SyncService implements OnModuleInit {
           const sigungu = p.bcode?.slice(0, 5) ?? null;
           await this.db.query(`update notice_houses set lat = $2, lng = $3, sigungu_code = coalesce(sigungu_code, $4) where id = $1`, [t.id, p.lat, p.lng, sigungu]);
           if (sigungu && p.sigunguName) {
-            // 시도명은 카카오 표기("서울")가 아니라 기존 시도 행("서울특별시")을 따라 마이홈 지역명과 맞춘다
+            // 시도 행이 없으면 "XX000" 행부터 만들고, 시군구 이름은 항상 "시도명 구명" 형태로 (마이홈 표기와 동일)
+            const sidoCode = sigungu.slice(0, 2);
+            const sidoName = SIDO_NAMES[sidoCode] ?? p.regionName ?? sidoCode;
             await this.db.query(
-              `insert into regions (code, sido_code, name)
-               select $1::char(5), $2::char(2), coalesce((select name from regions where code = $2::text || '000'), '') || ' ' || $3::text
-               on conflict (code) do nothing`,
-              [sigungu, sigungu.slice(0, 2), p.sigunguName],
+              `insert into regions (code, sido_code, name) values ($1, $2, $3) on conflict (code) do nothing`,
+              [`${sidoCode}000`, sidoCode, sidoName],
+            );
+            await this.db.query(
+              `insert into regions (code, sido_code, name) values ($1, $2, $3) on conflict (code) do nothing`,
+              [sigungu, sidoCode, `${sidoName} ${p.sigunguName}`],
             );
           }
         } else {

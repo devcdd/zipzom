@@ -3,6 +3,7 @@ import type { Region, Sido } from '../model/types';
 // 법정동코드 시도 2자리 (2026 기준: 강원 51, 전북 52). 데이터에만 있는 시도는 regions에서 보충
 export const SIDOS: Sido[] = [
   { code: '11', name: '서울특별시' },
+  { code: '12', name: '전남광주통합특별시' }, // 2026 광주+전남 통합
   { code: '26', name: '부산광역시' },
   { code: '27', name: '대구광역시' },
   { code: '28', name: '인천광역시' },
