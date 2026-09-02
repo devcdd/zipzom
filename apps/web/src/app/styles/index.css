@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+  --color-ground: #f5f7f4;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef2ee;
+  --color-ink: #17201c;
+  --color-muted: #5f6b66;
+  --color-line: #d9e0db;
+  --color-brand: #1e7a5b;
+  --color-brand-soft: #dff0e7;
+  --color-warn: #b45309;
+  --color-warn-soft: #fdecd2;
+  --color-danger: #b42318;
+  --color-danger-soft: #fee4e2;
+}
+
+html { color-scheme: light; }
+body { @apply bg-ground text-ink antialiased; font-variant-numeric: tabular-nums; }
+
+/* Tailwind 4는 같은 파일의 커스텀 클래스를 @apply 못 하므로 공통 스타일은 셀렉터 묶음으로 */
+.btn, .btn-primary, .btn-ghost { @apply inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
+.btn-primary { @apply bg-brand text-white hover:bg-[#186549]; }
+.btn-ghost { @apply border border-line bg-surface text-ink hover:bg-surface-2; }
+.field { @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-brand/40; }
+.label { @apply block text-xs font-medium text-muted mb-1.5; }
+.tag { @apply inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap; }
+.card { @apply rounded-xl border border-line bg-surface; }
