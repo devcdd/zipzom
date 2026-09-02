@@ -1,7 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Db } from '../db.js';
 import { extractFromPdf, type ExtractedEligibility, type ExtractedHouse } from './house-extractor.js';
-import { fetchLhFiles, fetchLhSplCodes, parseLhParams, pickLhNoticePdf, type LhPanKey } from './lh.client.js';
+import { fetchLhFiles, parseLhParams, pickLhNoticePdf, type LhPanKey } from './lh.client.js';
+
+// 행복주택 계열 공급정보 유형 코드. 상세 API는 이 중 하나면 응답한다
+const LH_SPL_CANDIDATES = ['063', '060', '061', '062'];
 import { fetchShAttachments, pickShNoticePdf } from './sh-rss.client.js';
 
 export interface Extraction {
@@ -82,25 +85,24 @@ export class ExtractionService {
     return f && { url: f.url, name: f.name };
   }
 
-  // 목록 API 색인은 동기화 1회 동안만 캐시 (PAN_ID → SPL_INF_TP_CD)
-  private lhCodes: { at: number; map: Map<string, string> } | null = null;
 
-  private async lhPdf(raw: { url?: string; SPL_INF_TP_CD?: string; PAN_ID?: string; CCR_CNNT_SYS_DS_CD?: string; UPP_AIS_TP_CD?: string; AIS_TP_CD?: string }): Promise<PdfRef | undefined> {
-    let k: LhPanKey | null;
-    let spl: string | undefined;
-    if (raw.PAN_ID && raw.SPL_INF_TP_CD) {
-      // LH 직접 수집 공고: raw가 LhNotice라 코드가 다 있다
-      k = { panId: raw.PAN_ID, ccrCnntSysDsCd: raw.CCR_CNNT_SYS_DS_CD ?? '', uppAisTpCd: raw.UPP_AIS_TP_CD ?? '', aisTpCd: raw.AIS_TP_CD ?? '' };
-      spl = raw.SPL_INF_TP_CD;
-    } else {
-      k = parseLhParams(raw.url);
-      if (!k) throw new Error('LH 청약플러스 링크 아님');
-      if (!this.lhCodes || Date.now() - this.lhCodes.at > 60 * 60_000) this.lhCodes = { at: Date.now(), map: await fetchLhSplCodes() };
-      spl = this.lhCodes.map.get(k.panId);
-      if (!spl) throw new Error(`LH 목록에서 PAN_ID ${k.panId} 못 찾음`);
+  /**
+   * 상세 API의 SPL_INF_TP_CD는 실제로 정확히 맞을 필요가 없다(060~063 아무거나 응답, 064만 빈 응답 — 2026-09 실측).
+   * 목록 API는 현재 게시 중인 공고만 주므로 마감 공고는 색인에 없다. raw에 코드가 있으면 먼저 쓰고, 없으면 후보를 순서대로 시도
+   */
+  private async lhPdf(raw: { url?: string; DTL_URL?: string; SPL_INF_TP_CD?: string; PAN_ID?: string; CCR_CNNT_SYS_DS_CD?: string; UPP_AIS_TP_CD?: string; AIS_TP_CD?: string }): Promise<PdfRef | undefined> {
+    const k: LhPanKey | null =
+      raw.PAN_ID
+        ? { panId: raw.PAN_ID, ccrCnntSysDsCd: raw.CCR_CNNT_SYS_DS_CD ?? '03', uppAisTpCd: raw.UPP_AIS_TP_CD ?? '06', aisTpCd: raw.AIS_TP_CD ?? '10' }
+        : parseLhParams(raw.url ?? raw.DTL_URL);
+    if (!k) throw new Error('LH 청약플러스 링크 아님');
+    for (const spl of new Set([raw.SPL_INF_TP_CD, ...LH_SPL_CANDIDATES].filter(Boolean) as string[])) {
+      const files = await fetchLhFiles(k, spl);
+      if (files.length === 0) continue;
+      const f = pickLhNoticePdf(files);
+      return f && { url: f.url, name: f.name };
     }
-    const f = pickLhNoticePdf(await fetchLhFiles(k, spl));
-    return f && { url: f.url, name: f.name };
+    return undefined;
   }
 
   list(): Promise<Extraction[]> {

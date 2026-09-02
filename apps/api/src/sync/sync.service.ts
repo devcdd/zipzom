@@ -308,7 +308,7 @@ export class SyncService implements OnModuleInit {
    * 단지명 부분일치. 색인(lhSpl)은 같은 실행의 syncLh가 만든 것을 쓴다
    */
   async enrichLhAreas(limit = 30) {
-    if (!lhEnabled() || this.lhSpl.size === 0) return { updated: 0 };
+    if (!lhEnabled()) return { updated: 0 };
     let updated = 0;
     try {
       const targets = await this.db.query<{ id: number; url: string | null }>(
@@ -320,9 +320,14 @@ export class SyncService implements OnModuleInit {
       );
       for (const t of targets) {
         const k = parseLhParams(t.url);
-        const spl = k && this.lhSpl.get(k.panId);
-        if (!k || !spl) continue;
-        for (const c of await fetchLhComplexes(k, spl)) {
+        if (!k) continue;
+        // 색인에 없어도(마감 공고) 상세는 후보 코드 아무거나로 열린다
+        let complexes: Awaited<ReturnType<typeof fetchLhComplexes>> = [];
+        for (const spl of new Set([this.lhSpl.get(k.panId), '063', '060', '061', '062'].filter(Boolean) as string[])) {
+          complexes = await fetchLhComplexes(k, spl);
+          if (complexes.length) break;
+        }
+        for (const c of complexes) {
           const a = parseArea(c.DDO_AR);
           const name = c.LCC_NT_NM?.replace(/\s+/g, '');
           if (!a || !name) continue;
