@@ -458,8 +458,8 @@ match(profile, notice) =
   </div>
 
   <div class="schema-grid">
-    <div class="entity"><header><h3>users</h3><span>계정</span></header><ul>
-      <li class="pk">id uuid<em>PK</em></li><li>email text<em>unique</em></li><li>created_at timestamptz</li></ul></div>
+    <div class="entity"><header><h3>users</h3><span>카카오 계정</span></header><ul>
+      <li class="pk">id uuid<em>PK</em></li><li>kakao_id text<em>unique</em></li><li>email text<em>unique · 어드민 판정</em></li><li>nickname text</li><li>created_at timestamptz</li></ul></div>
     <div class="entity"><header><h3>user_profiles</h3><span>주거조건</span></header><ul>
       <li class="pk fk">user_id uuid</li>
       <li>birth_date date<em>만 나이 계산</em></li>
@@ -605,13 +605,14 @@ pnpm dev:web                    # http://localhost:5173  (#/ 공고 · #/profile
     <tbody>
       <tr><td>마이홈 공고 수집 · SH RSS 수집 · 일 1회 스케줄 · 수동 트리거</td><td><span class="tag">완료</span></td><td>2026-09-01 첫 수집: 마이홈 233행 → 공고 92건(행복주택 29) · SH 1건 · 지역 55개</td></tr>
       <tr><td>자격 매칭 (6계층 규칙 · 소득기준 · 관심 지역)</td><td><span class="tag">완료</span></td><td><code>GET /api/matches/:userId</code>. 순수 함수 <code>matcher.ts</code> + Vitest 5케이스</td></tr>
-      <tr><td>프론트: 공고 목록·필터 / 조건 등록 / 내 매칭 / 어드민 DB 브라우저</td><td><span class="tag">완료</span></td><td>FSD 레이어. 로그인 없음 — userId를 localStorage에 보관</td></tr>
+      <tr><td>프론트: 공고 목록·필터 / 조건 등록 / 내 매칭 / 어드민 DB 브라우저</td><td><span class="tag">완료</span></td><td>FSD 레이어</td></tr>
+      <tr><td>카카오 로그인 · 어드민 권한</td><td><span class="tag">완료</span></td><td>서버 코드 플로우(<code>/api/auth/kakao</code> → callback → <code>users</code> upsert), HMAC 서명 쿠키 세션(라이브러리 없음, <code>SESSION_SECRET</code>). 비로그인 프로필은 localStorage, 로그인하면 서버로 이관. 매칭은 <code>POST /api/matches</code>에 프로필 본문. 어드민은 <code>ADMIN_EMAILS</code>의 카카오 이메일만(<code>AdminGuard</code>)</td></tr>
       <tr><td>지도 (카카오맵)</td><td><span class="tag">완료</span></td><td>카카오맵 활성화 후 지오코딩 127/127 성공. 홈·전체공고에 마커 지도(클러스터·말풍선·카드 스크롤 연동). JS 키는 루트 <code>.env</code>의 <code>VITE_KAKAO_JS_KEY</code></td></tr>
       <tr><td>SH 공고 상세</td><td><span class="tag">완료</span></td><td>RSS 본문 파싱으로 접수기간·당첨자발표일·공급호수 (<code>parseShNotice</code>). 단지 표는 첨부 공고문 PDF를 <code>innoFD.do</code>로 직접 받아(인증 불필요) gpt-5.6-luna에 PDF째 넣고 json_schema strict로 추출 → <code>notice_extractions</code>(PENDING) → 어드민 "추출 검수" 탭에서 셀 수정 후 승인 시 <code>notice_houses</code> 교체·지오코딩·시군구 채움. 2026-09-02 실측: 62개 단지, 공급호수 합 1,484(RSS와 일치), 좌표 62/62, 건당 약 60원(입력 19만 토큰·44초)</td></tr>
       <tr><td>단지별 모집계층 매핑</td><td><span class="tag neutral">보류</span></td><td>마이홈 API엔 계층 필드 없음(제목에만 간혹). SH PDF는 추출 가능하나 월 1~2건뿐이라 반쪽 기능. 운영해 보고 필요하면 LH 공고문 PDF 다운로드 경로 확인 → 같은 LLM 파이프라인에 태워 <code>notice_houses.eligible_groups</code>. 값싼 선행: 제목 정규식(고령자·청년 전용)으로 <code>notices.target_groups</code></td></tr>
       <tr><td>마이홈 단지정보(HWSPR04) → <code>complexes</code></td><td><span class="tag neutral">대기</span></td><td>필수 파라미터(지역코드) 있어 코드표 필요. 공고 행에 단지명·주소·세대수가 이미 있어 1차 불필요</td></tr>
       <tr><td>LH 공고 API 보강</td><td><span class="tag neutral">대기</span></td><td>마이홈이 LH 공고를 모두 커버(293/319행). 상태 정밀도 필요 시 도입</td></tr>
-      <tr><td>알림 채널 · 인증</td><td><span class="tag neutral">결정 필요</span></td><td>현재 "NEW" 배지(매칭 3일 이내)로 대체. 이메일/웹푸시 + 로그인은 다음 단계</td></tr>
+      <tr><td>알림 채널</td><td><span class="tag neutral">결정 필요</span></td><td>현재 "NEW" 배지(매칭 3일 이내, 로그인 시)로 대체. 카카오 이메일이 있으니 이메일 알림이 가장 짧은 길</td></tr>
       <tr><td>api TypeScript 7 전환</td><td><span class="tag neutral">대기</span></td><td>Nest CLI가 TS 컴파일러 API 필요. TS 7.1 출시 후 <code>apps/api</code> 의존성만 올리면 됨</td></tr>
       <tr><td>소득기준 갱신</td><td><span class="tag neutral">연 1회</span></td><td>통계청 발표(3~4월) 후 <code>income_standards</code> 행 추가</td></tr>
     </tbody>
