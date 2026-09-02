@@ -102,8 +102,11 @@ async function getJson(url: URL): Promise<Record<string, unknown[]>> {
   return merged;
 }
 
-/** 임대주택 공고 목록. 게시일 최근 4개월 ~ 마감 1년 후 윈도우, 500건씩 페이징 */
-export async function fetchLhNotices(): Promise<LhNotice[]> {
+/**
+ * 공고 목록. 게시일 최근 4개월 ~ 마감 1년 후 윈도우, 500건씩 페이징.
+ * uppAisTpCd 기본 '06'(임대주택). 비우면 전 유형 — 신혼희망타운 안의 행복주택은 '39 공공분양(신혼희망)'에 실린다
+ */
+export async function fetchLhNotices(uppAisTpCd: string | null = '06'): Promise<LhNotice[]> {
   const from = new Date();
   from.setMonth(from.getMonth() - 4);
   const to = new Date();
@@ -111,7 +114,8 @@ export async function fetchLhNotices(): Promise<LhNotice[]> {
   const out: LhNotice[] = [];
   for (let page = 1; page <= 10; page++) {
     const url = new URL('https://apis.data.go.kr/B552555/lhLeaseNoticeInfo1/lhLeaseNoticeInfo1');
-    url.search = `ServiceKey=${key()}&PG_SZ=500&PAGE=${page}&UPP_AIS_TP_CD=06&PAN_NT_ST_DT=${ymd(from)}&CLSG_DT=${ymd(to)}`;
+    const upp = uppAisTpCd ? `&UPP_AIS_TP_CD=${uppAisTpCd}` : '';
+    url.search = `ServiceKey=${key()}&PG_SZ=500&PAGE=${page}${upp}&PAN_NT_ST_DT=${ymd(from)}&CLSG_DT=${ymd(to)}`;
     const rows = ((await getJson(url)).dsList ?? []) as LhNotice[];
     out.push(...rows);
     if (rows.length < 500) break;
@@ -119,9 +123,12 @@ export async function fetchLhNotices(): Promise<LhNotice[]> {
   return out;
 }
 
-/** PAN_ID → SPL_INF_TP_CD 색인 (마이홈 url엔 이 코드가 없어서) */
+/**
+ * PAN_ID → SPL_INF_TP_CD 색인 (마이홈 url엔 이 코드가 없어서).
+ * 임대주택(06)만 보면 신혼희망타운 행복주택(39)이 빠져 "LH 목록에서 PAN_ID 못 찾음"이 난다. 색인은 전 유형으로 만든다
+ */
 export async function fetchLhSplCodes(): Promise<Map<string, string>> {
-  return new Map((await fetchLhNotices()).map((n) => [n.PAN_ID, n.SPL_INF_TP_CD]));
+  return new Map((await fetchLhNotices(null)).map((n) => [n.PAN_ID, n.SPL_INF_TP_CD]));
 }
 
 async function fetchDetailRaw(k: LhPanKey, splInfTpCd: string) {

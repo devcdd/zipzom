@@ -117,32 +117,60 @@ ${GROUP_GUIDE}
 /**
  * PDF를 통째로 넣고 json_schema strict로 받는다. withHouseDetail=false면(마이홈에 단지 정보가 이미 있는 LH) 단지는 이름·계층 배정만.
  */
+const RATE_LIMIT_RETRIES = 3;
+const MAX_WAIT_MS = 90_000;
+
+/** 429의 retry-after 헤더(초)를 따르고, 없으면 메시지의 "try again in 10.6s"를 읽는다. 둘 다 없으면 20초. */
+export function retryAfterMs(headers: Headers, message: string | undefined): number {
+  const header = Number(headers.get('retry-after'));
+  if (header > 0) return Math.min(header * 1000, MAX_WAIT_MS);
+  const m = /try again in ([\d.]+)\s*s/i.exec(message ?? '');
+  return Math.min(m ? Math.ceil(Number(m[1]) * 1000) : 20_000, MAX_WAIT_MS);
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+interface OpenAiResponse {
+  error?: { message: string };
+  status?: string;
+  usage?: unknown;
+  output?: { type: string; content?: { type: string; text?: string; refusal?: string }[] }[];
+}
+
+/**
+ * 공고문 한 건이 10만 토큰 안팎이라 동기화 1회에 5~6건이 연달아 들어가면 분당 한도(TPM 50만)에 걸린다.
+ * 429는 몇 초 뒤 풀리는 오류라 여기서 기다렸다 다시 보낸다. 안 그러면 FAILED로 굳어 수동 재시도가 필요해진다.
+ */
+async function postWithRetry(body: string): Promise<{ res: Response; json: OpenAiResponse }> {
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
+      signal: AbortSignal.timeout(240_000),
+      body,
+    });
+    const json = (await res.json()) as OpenAiResponse;
+    if (res.status !== 429 || attempt >= RATE_LIMIT_RETRIES) return { res, json };
+    await sleep(retryAfterMs(res.headers, json.error?.message));
+  }
+}
+
 export async function extractFromPdf(pdf: Uint8Array, filename: string, opts: { withHouseDetail: boolean }): Promise<ExtractionResult> {
   const model = process.env.OPENAI_MODEL || 'gpt-5.6-luna';
-  const res = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-    signal: AbortSignal.timeout(240_000),
-    body: JSON.stringify({
-      model,
-      input: [
-        {
-          role: 'user',
-          content: [
-            { type: 'input_file', filename, file_data: `data:application/pdf;base64,${Buffer.from(pdf).toString('base64')}` },
-            { type: 'input_text', text: prompt(opts.withHouseDetail) },
-          ],
-        },
-      ],
-      text: { format: { type: 'json_schema', name: 'notice', strict: true, schema: jsonSchema(opts.withHouseDetail) } },
-    }),
+  const body = JSON.stringify({
+    model,
+    input: [
+      {
+        role: 'user',
+        content: [
+          { type: 'input_file', filename, file_data: `data:application/pdf;base64,${Buffer.from(pdf).toString('base64')}` },
+          { type: 'input_text', text: prompt(opts.withHouseDetail) },
+        ],
+      },
+    ],
+    text: { format: { type: 'json_schema', name: 'notice', strict: true, schema: jsonSchema(opts.withHouseDetail) } },
   });
-  const json = (await res.json()) as {
-    error?: { message: string };
-    status?: string;
-    usage?: unknown;
-    output?: { type: string; content?: { type: string; text?: string; refusal?: string }[] }[];
-  };
+  const { res, json } = await postWithRetry(body);
   if (!res.ok) throw new Error(`openai HTTP ${res.status}: ${json.error?.message ?? 'unknown'}`);
   const content = json.output?.flatMap((o) => o.content ?? []) ?? [];
   const refusal = content.find((c) => c.type === 'refusal')?.refusal;
