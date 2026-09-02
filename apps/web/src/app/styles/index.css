@@ -27,3 +27,5 @@ body { @apply bg-ground text-ink antialiased; font-variant-numeric: tabular-nums
 .label { @apply block text-xs font-medium text-muted mb-1.5; }
 .tag { @apply inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap; }
 .card { @apply rounded-xl border border-line bg-surface; }
+/* .card와 같은 레이어여야 bg-surface를 덮는다. 유틸리티 클래스로 넘기면 레이어 우선순위에 밀림 */
+.card-selected { @apply border-brand/50 bg-brand-soft; }

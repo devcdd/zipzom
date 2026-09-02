@@ -14,13 +14,17 @@ function MapPinIcon() {
   );
 }
 
-export function NoticeCard({ notice: n, isNew, onShowMap }: { notice: Notice; isNew?: boolean; onShowMap?: () => void }) {
+export function NoticeCard({ notice: n, isNew, selected, onShowMap }: { notice: Notice; isNew?: boolean; selected?: boolean; onShowMap?: () => void }) {
   const [expanded, setExpanded] = useState(false);
   const houses = n.houses.filter((h) => h.name || h.address);
   const shown = expanded ? houses : houses.slice(0, 3);
 
   return (
-    <article id={`notice-${n.id}`} className="card flex flex-col gap-3 p-5 scroll-mt-20 target:ring-2 target:ring-brand/40">
+    <article
+      id={`notice-${n.id}`}
+      aria-current={selected ? 'true' : undefined}
+      className={`card flex flex-col gap-3 p-5 scroll-mt-20 transition-colors ${selected ? 'card-selected' : ''}`}
+    >
       <div className="flex items-center gap-1.5">
         <Tag tone="ink">{n.institution ?? n.source}</Tag>
         {n.supplyType && <Tag>{n.supplyType}</Tag>}

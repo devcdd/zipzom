@@ -4,12 +4,12 @@ import { isSidoCode, type Region } from '@/entities/region';
 import { DEFAULT_FILTERS, NoticeFilters, phaseParam, type NoticeFiltersValue } from '@/features/notice-filters';
 import { useAsync } from '@/shared/lib';
 import { PageState } from '@/shared/ui';
-import { NoticeMap, noticesToMarkers, type MapFocus } from '@/widgets/notice-map';
+import { NoticeMap, noticesToMarkers, useNoticeSelection } from '@/widgets/notice-map';
 
 /** 전체 행복주택 공고 + 필터. 매칭과 무관하게 둘러보기용. */
 export function NoticeFeed({ regions }: { regions?: Region[] }) {
   const [filters, setFilters] = useState<NoticeFiltersValue>(DEFAULT_FILTERS);
-  const [focus, setFocus] = useState<MapFocus | null>(null);
+  const { focus, selectedId, showOnMap, selectFromMap } = useNoticeSelection();
   const { regions: picked } = filters;
   const { data, loading, error } = useAsync(
     () =>
@@ -34,13 +34,13 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
           <div className="grid gap-3">
             {data?.items.map((n) => (
-              <NoticeCard key={n.id} notice={n} onShowMap={() => setFocus({ noticeId: n.id, at: Date.now() })} />
+              <NoticeCard key={n.id} notice={n} selected={selectedId === n.id} onShowMap={() => showOnMap(n.id)} />
             ))}
           </div>
           <NoticeMap
             markers={noticesToMarkers(data?.items ?? [])}
             focus={focus}
-            onSelect={(id) => document.getElementById(`notice-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            onSelect={selectFromMap}
             className="order-first h-80 lg:order-none lg:sticky lg:top-20 lg:h-[calc(100svh-7rem)]"
           />
         </div>

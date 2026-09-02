@@ -53,9 +53,15 @@ export function NoticeMap({
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
   const markersRef = useRef<MapMarker[]>(markers);
+  const onSelectRef = useRef(onSelect);
   useEffect(() => {
     markersRef.current = markers;
-  }, [markers]);
+    onSelectRef.current = onSelect;
+  });
+
+  // 부모가 매 렌더 새 배열을 만들기 때문에 참조로 비교하면 마커가 계속 다시 그려지고
+  // 아래 setBounds가 사용자가 맞춰둔 줌·중심을 되돌린다. 내용이 바뀔 때만 다시 그린다
+  const markerKey = markers.map((m) => m.key).join('|');
 
   useEffect(() => {
     let alive = true;
@@ -84,7 +90,7 @@ export function NoticeMap({
     clusterer.current.clear();
     const bounds = new kakao.maps.LatLngBounds();
     const image = greenDot();
-    const kakaoMarkers = markers.map((m) => {
+    const kakaoMarkers = markersRef.current.map((m) => {
       const pos = new kakao.maps.LatLng(m.lat, m.lng);
       bounds.extend(pos);
       const marker = new kakao.maps.Marker({ position: pos, title: m.name, image });
@@ -92,7 +98,7 @@ export function NoticeMap({
         overlay.current?.setMap(null);
         overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10 });
         overlay.current.setMap(map.current);
-        onSelect?.(m.noticeId);
+        onSelectRef.current?.(m.noticeId);
       });
       return marker;
     });
@@ -102,7 +108,7 @@ export function NoticeMap({
       clusterer.current?.clear();
       kakaoMarkers.forEach((k) => k.setMap(null));
     };
-  }, [status, markers, onSelect]);
+  }, [status, markerKey]);
 
   // 카드의 지도 아이콘 클릭 → 해당 공고 단지로 이동. 단지 1곳이면 줌인+말풍선, 여러 곳이면 bounds
   useEffect(() => {
