@@ -30,4 +30,4 @@ body { @apply bg-ground text-ink antialiased; font-variant-numeric: tabular-nums
 /* .card와 같은 레이어여야 bg-surface를 덮는다. 유틸리티 클래스로 넘기면 레이어 우선순위에 밀림 */
 .card-selected { @apply border-brand/40 bg-brand-soft/30; }
 /* 지도에서 고른 단지 행: 위아래 구분선만 초록으로. inset shadow라 레이아웃 안 밀림 */
-.house-selected { @apply shadow-[inset_0_1px_0_0_var(--color-brand),inset_0_-1px_0_0_var(--color-brand)]; }
+.house-selected { @apply bg-brand-soft/50 shadow-[inset_0_1px_0_0_var(--color-brand),inset_0_-1px_0_0_var(--color-brand)]; }
