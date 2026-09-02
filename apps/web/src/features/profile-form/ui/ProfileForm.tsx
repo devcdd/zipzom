@@ -196,27 +196,30 @@ export function ProfileForm({
         <div className="sm:col-span-2">
           <span className="label">관심 지역</span>
           <p className="mb-2 text-[11px] text-muted">비우면 거주 시도 전체. 숫자는 현재 수집된 단지 수.</p>
-          <div className="flex flex-col gap-2">
+          {/* 넓으면 [시도 | 구 칩] 2열, 좁으면 시도 위·칩 아래. 라벨을 칩과 같은 줄에 두면 줄바꿈 시 열이 어긋난다 */}
+          <div className="divide-y divide-line overflow-hidden rounded-lg border border-line">
             {groups.map((g) => (
-              <div key={g.sido.code} className="flex flex-wrap items-center gap-1.5">
-                <span className="w-28 shrink-0 text-xs text-muted">{g.sido.name}</span>
-                {g.regions.map((r) => {
-                  const on = p.preferredSigunguCodes.includes(r.code);
-                  return (
-                    <button
-                      key={r.code}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() => togglePreferred(r.code)}
-                      className={`rounded-full border px-2.5 py-0.5 text-xs transition-colors ${on ? 'border-brand bg-brand-soft text-brand' : 'border-line bg-surface text-muted hover:text-ink'}`}
-                    >
-                      {regionLabel(r)} <span className="opacity-60">{r.houseCount}</span>
-                    </button>
-                  );
-                })}
+              <div key={g.sido.code} className="grid gap-y-1.5 px-3 py-2 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:gap-x-3">
+                <span className="text-xs font-medium text-muted sm:pt-1">{g.sido.name}</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {g.regions.map((r) => {
+                    const on = p.preferredSigunguCodes.includes(r.code);
+                    return (
+                      <button
+                        key={r.code}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => togglePreferred(r.code)}
+                        className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs transition-colors ${on ? 'border-brand bg-brand-soft text-brand' : 'border-line bg-surface text-muted hover:text-ink'}`}
+                      >
+                        {regionLabel(r)} <span className="opacity-60">{r.houseCount}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             ))}
-            {groups.length === 0 && <p className="text-xs text-muted">아직 수집된 공고가 없어요. 어드민에서 동기화를 먼저 실행해 주세요.</p>}
+            {groups.length === 0 && <p className="px-3 py-2 text-xs text-muted">아직 수집된 공고가 없어요. 어드민에서 동기화를 먼저 실행해 주세요.</p>}
           </div>
         </div>
       </Section>
