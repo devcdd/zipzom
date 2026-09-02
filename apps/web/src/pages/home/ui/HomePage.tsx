@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useBookmarks } from '@/entities/bookmark';
 import { matchApi } from '@/entities/match';
 import { NoticeCard } from '@/entities/notice';
 import { useProfile } from '@/entities/profile';
@@ -15,6 +16,7 @@ type Mode = 'matches' | 'all';
 export function HomePage() {
   const { me, loading: sessionLoading } = useSession();
   const { profile, loading: profileLoading } = useProfile(sessionLoading ? undefined : !!me);
+  const bookmarks = useBookmarks(sessionLoading ? undefined : !!me);
   const [mode, setMode] = useState<Mode | null>(null);
   // 프로필 확인 전엔 탭을 고정하지 않는다. 있으면 내 매칭, 없으면 전체 공고
   const effectiveMode: Mode = mode ?? (profile ? 'matches' : 'all');
@@ -25,7 +27,7 @@ export function HomePage() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">행복주택 공고</h1>
+        <h1 className="text-lg font-semibold">LH · SH · HUG · 마이홈 공고</h1>
         <div role="radiogroup" className="inline-flex rounded-md border border-line bg-surface p-0.5 text-sm">
           {(
             [
@@ -67,12 +69,20 @@ export function HomePage() {
                 <>
                   <p className="text-xs text-muted">모집 중·예정 {matches.data.notices.length}건 · 관심 지역 기준</p>
                   {matches.data.notices.length === 0 ? (
-                    <div className="card p-10 text-center text-sm text-muted">관심 지역에 모집 중인 행복주택 공고가 없어요. 전체 공고에서 다른 지역도 살펴보세요.</div>
+                    <div className="card p-10 text-center text-sm text-muted">관심 지역에 모집 중인 공고가 없어요. 전체 공고에서 다른 지역도 살펴보세요.</div>
                   ) : (
                     <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
                       <div className="grid gap-3">
                         {matches.data.notices.map((n) => (
-                          <NoticeCard key={n.id} notice={n} isNew={withinDays(n.matchedAt, 3)} selected={selectedId === n.id} onShowMap={() => showOnMap(n.id)} />
+                          <NoticeCard
+                            key={n.id}
+                            notice={n}
+                            isNew={withinDays(n.matchedAt, 3)}
+                            selected={selectedId === n.id}
+                            bookmarked={bookmarks.ids.has(n.id)}
+                            onToggleBookmark={() => bookmarks.toggle(n.id)}
+                            onShowMap={() => showOnMap(n.id)}
+                          />
                         ))}
                       </div>
                       <NoticeMap

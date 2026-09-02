@@ -36,9 +36,13 @@ export function Header({ path }: { path: string }) {
         <div className="ml-auto flex items-center gap-2 text-sm">
           {loading ? null : me ? (
             <>
-              <span className="max-w-40 truncate text-muted" title={me.email}>
+              <a
+                href="#/me"
+                title={me.email}
+                className={`max-w-40 truncate rounded-md px-2 py-1 transition-colors ${path.startsWith('/me') ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink'}`}
+              >
                 {me.nickname ?? me.email}
-              </span>
+              </a>
               <button type="button" onClick={logout} className="btn-ghost px-2.5 py-1 text-xs">
                 로그아웃
               </button>

@@ -16,6 +16,7 @@ export const authApi = {
     return r.id ? r : null;
   },
   logout: () => request<{ ok: boolean }>('/auth/logout', { method: 'POST' }),
+  updateNickname: (nickname: string) => request<Me>('/auth/me', { method: 'PATCH', body: JSON.stringify({ nickname }) }),
   /** 카카오 인가 페이지로 이동하는 서버 엔드포인트 (풀 리다이렉트) */
   loginUrl: '/api/auth/kakao',
 };

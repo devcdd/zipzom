@@ -1,27 +1,32 @@
 import { useState } from 'react';
-import { NoticeCard, noticeApi } from '@/entities/notice';
+import { useBookmarks } from '@/entities/bookmark';
+import { NoticeCard, SUPPLY_TYPES, noticeApi } from '@/entities/notice';
 import { isSidoCode, type Region } from '@/entities/region';
+import { useSession } from '@/entities/user';
 import { DEFAULT_FILTERS, NoticeFilters, phaseParam, type NoticeFiltersValue } from '@/features/notice-filters';
-import { useAsync } from '@/shared/lib';
+import { useAsync, useDebounce } from '@/shared/lib';
 import { PageState } from '@/shared/ui';
 import { NoticeMap, noticesToMarkers, useNoticeSelection } from '@/widgets/notice-map';
 
-/** 전체 행복주택 공고 + 필터. 매칭과 무관하게 둘러보기용. */
+/** 수집한 전체 공고 + 필터. 매칭과 무관하게 둘러보기용. */
 export function NoticeFeed({ regions }: { regions?: Region[] }) {
   const [filters, setFilters] = useState<NoticeFiltersValue>(DEFAULT_FILTERS);
+  const { me, loading: sessionLoading } = useSession();
+  const bookmarks = useBookmarks(sessionLoading ? undefined : !!me);
   const { focus, selectedId, showOnMap, selectFromMap } = useNoticeSelection();
   const { regions: picked } = filters;
+  const q = useDebounce(filters.q.trim(), 300);
   const { data, loading, error } = useAsync(
     () =>
       noticeApi.list({
-        supplyType: '행복주택',
+        supplyTypes: SUPPLY_TYPES,
         phase: phaseParam(filters.phase),
         sido: picked.filter(isSidoCode).map((c) => c.slice(0, 2)),
         sigungu: picked.filter((c) => !isSidoCode(c)),
-        q: filters.q || undefined,
+        q: q || undefined,
         limit: 100,
       }),
-    [filters.phase, picked, filters.q],
+    [filters.phase, picked, q],
   );
 
   return (
@@ -34,7 +39,14 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
           <div className="grid gap-3">
             {data?.items.map((n) => (
-              <NoticeCard key={n.id} notice={n} selected={selectedId === n.id} onShowMap={() => showOnMap(n.id)} />
+              <NoticeCard
+                key={n.id}
+                notice={n}
+                selected={selectedId === n.id}
+                bookmarked={bookmarks.ids.has(n.id)}
+                onToggleBookmark={() => bookmarks.toggle(n.id)}
+                onShowMap={() => showOnMap(n.id)}
+              />
             ))}
           </div>
           <NoticeMap

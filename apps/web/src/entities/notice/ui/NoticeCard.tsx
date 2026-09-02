@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fmtDate, fmtWon } from '@/shared/lib';
+import { fmtDate, fmtRent } from '@/shared/lib';
 import { Tag } from '@/shared/ui';
 import { PHASE } from '../lib/phase';
 import { NoticeTimeline } from './NoticeTimeline';
@@ -14,7 +14,21 @@ function MapPinIcon() {
   );
 }
 
-export function NoticeCard({ notice: n, isNew, selected, onShowMap }: { notice: Notice; isNew?: boolean; selected?: boolean; onShowMap?: () => void }) {
+export function NoticeCard({
+  notice: n,
+  isNew,
+  selected,
+  bookmarked,
+  onShowMap,
+  onToggleBookmark,
+}: {
+  notice: Notice;
+  isNew?: boolean;
+  selected?: boolean;
+  bookmarked?: boolean;
+  onShowMap?: () => void;
+  onToggleBookmark?: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const houses = n.houses.filter((h) => h.name || h.address);
   const shown = expanded ? houses : houses.slice(0, 3);
@@ -43,6 +57,18 @@ export function NoticeCard({ notice: n, isNew, selected, onShowMap }: { notice: 
             n.title
           )}
         </h3>
+        {onToggleBookmark && (
+          <button
+            type="button"
+            onClick={onToggleBookmark}
+            aria-pressed={bookmarked}
+            title={bookmarked ? '북마크 해제' : '북마크'}
+            aria-label={bookmarked ? '북마크 해제' : '북마크'}
+            className={`shrink-0 rounded-md border p-1.5 transition-colors ${bookmarked ? 'border-warn/40 bg-warn-soft text-warn' : 'border-line bg-surface text-muted hover:border-warn/40 hover:bg-warn-soft hover:text-warn'}`}
+          >
+            <StarIcon filled={!!bookmarked} />
+          </button>
+        )}
         {onShowMap && n.houses.some((h) => h.lat != null) && (
           <button
             type="button"
@@ -65,11 +91,7 @@ export function NoticeCard({ notice: n, isNew, selected, onShowMap }: { notice: 
               </span>
               <span className="truncate text-muted">{h.address ?? ''}</span>
               <span className="whitespace-nowrap text-right">
-                {h.minDeposit || h.minMonthlyRent ? (
-                  `보증금 ${fmtWon(h.minDeposit)} · 월 ${fmtWon(h.minMonthlyRent)}`
-                ) : (
-                  <span className="text-muted">임대조건 공고문 참조</span>
-                )}
+                {fmtRent(h.minDeposit, h.minMonthlyRent) ?? <span className="text-muted">임대조건 공고문 참조</span>}
               </span>
             </li>
           ))}
@@ -118,5 +140,13 @@ export function NoticeCard({ notice: n, isNew, selected, onShowMap }: { notice: 
         )}
       </dl>
     </article>
+  );
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 3.5l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17.5l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" />
+    </svg>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { AdminPage } from '@/pages/admin';
 import { HomePage } from '@/pages/home';
+import { MePage } from '@/pages/me';
 import { ProfilePage } from '@/pages/profile';
 import { SessionProvider } from '@/entities/user';
 import { Header } from '@/widgets/header';
@@ -18,13 +19,13 @@ function useHashPath() {
 
 export function App() {
   const path = useHashPath();
-  const Page = path.startsWith('/admin') ? AdminPage : path.startsWith('/profile') ? ProfilePage : HomePage;
+  const Page = path.startsWith('/admin') ? AdminPage : path.startsWith('/profile') ? ProfilePage : path.startsWith('/me') ? MePage : HomePage;
   return (
     <SessionProvider>
       <div className="flex min-h-svh flex-col">
         <Header path={path} />
         <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-6">
-          <Page key={path} />
+          <Page key={path.startsWith('/me') ? '/me' : path} />
         </main>
       </div>
     </SessionProvider>

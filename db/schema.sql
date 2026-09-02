@@ -1,7 +1,7 @@
 -- zipzom 스키마 (Postgres 17). docker compose 첫 기동 시 자동 적용.
 -- 좌표는 PostGIS 없이 double 컬럼 사용. ponytail: bbox 조회로 충분, 반경/거리순 정밀도 필요해지면 PostGIS
 
-create type notice_source as enum ('MYHOME', 'LH', 'SH');
+create type notice_source as enum ('MYHOME', 'LH', 'SH', 'HUG');
 create type marital_status as enum ('SINGLE', 'MARRIED', 'ENGAGED'); -- ENGAGED = 예비신혼부부
 
 -- ───────────────────────── 사용자 · 주거조건 ─────────────────────────
@@ -59,9 +59,10 @@ create table income_standards (
   primary key (apply_year, household_size)
 );
 
--- 행복주택 계층별 입주자격. 공고별 예외(우선공급 등)는 notices.raw로 보완
+-- 공급유형별 입주자격. 공고별 예외(우선공급 등)는 notices.raw로 보완
 create table eligibility_rules (
-  code                   text primary key,   -- STUDENT | YOUTH | NEWLYWED | SINGLE_PARENT | SENIOR | HOUSING_BENEFIT
+  code                   text primary key,   -- STUDENT | YOUTH | NEWLYWED | SINGLE_PARENT | SENIOR | HOUSING_BENEFIT | HUG_JEONSE
+  supply_type            text not null,      -- 이 규칙이 적용되는 notices.supply_type. 규칙 통과 = 해당 공급유형 공고 노출
   label                  text not null,
   min_age                smallint,
   max_age                smallint,
@@ -130,7 +131,7 @@ create table notices (
   title               text not null,
   institution         text,              -- 공급기관 LH | SH | ...
   house_type          text,              -- 주택유형: 아파트 | 다가구주택 | 기숙사 (마이홈 houseTyNm)
-  supply_type         text,              -- 공급유형: 행복주택 | 국민임대 | 매입임대 … (마이홈 suplyTyNm) ← 필터 기준
+  supply_type         text,              -- 공급유형: 행복주택 | 든든전세 | 국민임대 … (마이홈 suplyTyNm) ← 필터 기준
   status              text,              -- 공고중 | 접수중 | 접수마감 | 정정공고중
   posted_on           date,
   apply_begin_on      date,
@@ -181,6 +182,14 @@ create table user_notice_matches (
   primary key (user_id, notice_id)
 );
 
+-- 북마크. 로그인 사용자만 (비로그인은 저장 안 함)
+create table user_bookmarks (
+  user_id     uuid   not null references users(id) on delete cascade,
+  notice_id   bigint not null references notices(id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  primary key (user_id, notice_id)
+);
+
 create table sync_runs (
   id           bigserial primary key,
   source       notice_source not null,
@@ -204,14 +213,17 @@ insert into income_standards (apply_year, household_size, amount) values
 
 -- 마이홈포털 행복주택 입주자격 안내 (2026-09 확인). 산업단지근로자 계층은 미포함
 insert into eligibility_rules
-  (code, label, min_age, max_age, requires_unmarried, marriage_within_years, child_max_age,
+  (code, supply_type, label, min_age, max_age, requires_unmarried, marriage_within_years, child_max_age,
    income_pct, dual_income_pct, asset_limit, car_limit, max_residence_years, effective_from) values
-  ('STUDENT',         '대학생·취업준비생', null, null, true,  null, null, 100, null, 108000000,        0, 10, '2026-01-01'),
-  ('YOUTH',           '청년·사회초년생',     19,   39, true,  null, null, 100, null, 251000000, 45420000, 10, '2026-01-01'),
-  ('NEWLYWED',        '신혼부부·예비신혼부부', null, null, false,    7,    6, 100,  120, 345000000, 45420000, 10, '2026-01-01'),
-  ('SINGLE_PARENT',   '한부모가족',        null, null, false, null,    6, 100, null, 345000000, 45420000, 10, '2026-01-01'),
-  ('SENIOR',          '고령자',              65, null, false, null, null, 100, null, 345000000, 45420000, 20, '2026-01-01'),
-  ('HOUSING_BENEFIT', '주거급여수급자',    null, null, false, null, null, null, null, 345000000, 45420000, 20, '2026-01-01');
+  ('STUDENT',         '행복주택', '대학생·취업준비생', null, null, true,  null, null, 100, null, 108000000,        0, 10, '2026-01-01'),
+  ('YOUTH',           '행복주택', '청년·사회초년생',     19,   39, true,  null, null, 100, null, 251000000, 45420000, 10, '2026-01-01'),
+  ('NEWLYWED',        '행복주택', '신혼부부·예비신혼부부', null, null, false,    7,    6, 100,  120, 345000000, 45420000, 10, '2026-01-01'),
+  ('SINGLE_PARENT',   '행복주택', '한부모가족',        null, null, false, null,    6, 100, null, 345000000, 45420000, 10, '2026-01-01'),
+  ('SENIOR',          '행복주택', '고령자',              65, null, false, null, null, 100, null, 345000000, 45420000, 20, '2026-01-01'),
+  ('HOUSING_BENEFIT', '행복주택', '주거급여수급자',    null, null, false, null, null, null, null, 345000000, 45420000, 20, '2026-01-01'),
+  -- HUG 든든전세: 2026.7.24 수시 공고문 확인 결과 자격이 '공고일 기준 무주택세대구성원' 뿐.
+  -- 공고문 전문에 '소득'·'자산' 단어가 0회 등장하고 선정은 무작위 추첨. 나머지 컬럼을 비워 무주택만 판정한다
+  ('HUG_JEONSE',      '든든전세', 'HUG 든든전세',      null, null, false, null, null, null, null,      null,     null,  8, '2026-01-01');
 
 -- ───────────────────────── LLM 추출 검수 ─────────────────────────
 

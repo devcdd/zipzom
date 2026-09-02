@@ -1,8 +1,10 @@
-import { BadRequestException, Controller, Get, Post, Query, Req, Res } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Patch, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { z } from 'zod';
+import { parse } from '../validate.js';
 import { randomBytes } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { Db } from '../db.js';
-import { cookieOptions, CurrentUser, readCookie, requestOrigin, SESSION_COOKIE, setSession, type SessionUser } from './auth.js';
+import { AuthGuard, cookieOptions, CurrentUser, readCookie, requestOrigin, SESSION_COOKIE, setSession, type SessionUser } from './auth.js';
 
 const STATE_COOKIE = 'zz_oauth_state';
 // 카카오 콘솔에 등록한 Redirect URI와 글자 단위로 같아야 한다 (dev: localhost:5173, 운영: 도메인)
@@ -15,6 +17,17 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: SessionUser | null) {
     return user ?? { id: null };
+  }
+
+  /** 닉네임은 세션 쿠키에도 들어 있어 수정 후 재발급 */
+  @Patch('me')
+  @UseGuards(AuthGuard)
+  async updateMe(@CurrentUser() user: SessionUser, @Body() body: unknown, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const { nickname } = parse(z.object({ nickname: z.string().trim().min(1).max(20) }), body);
+    await this.db.query(`update users set nickname = $2 where id = $1`, [user.id, nickname]);
+    const next = { id: user.id, email: user.email, nickname };
+    setSession(req, res, next);
+    return { ...next, isAdmin: user.isAdmin };
   }
 
   @Post('logout')
