@@ -39,7 +39,9 @@ export function NoticeCard({
   const [expanded, setExpanded] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const hit = new Set(highlightGroups ?? []);
-  const houses = n.houses.filter((h) => h.name || h.address);
+  // 내 매칭 계층에 배정된 단지가 먼저. 나머지는 서버 순서 유지(안정 정렬)
+  const forMe = (h: Notice['houses'][number]) => hit.size > 0 && (h.eligibleGroups ?? []).some((g) => hit.has(g));
+  const houses = n.houses.filter((h) => h.name || h.address).sort((a, b) => Number(forMe(b)) - Number(forMe(a)));
   const shown = expanded ? houses : houses.slice(0, 3);
 
   return (
