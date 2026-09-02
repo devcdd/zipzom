@@ -5,7 +5,7 @@ export function Header() {
   const { me, loading } = useSession();
 
   return (
-    <header className="sticky top-0 z-10 border-b border-line bg-surface/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur">
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center px-5">
         <a href="#/" className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="inline-block size-2.5 rounded-full bg-brand" />

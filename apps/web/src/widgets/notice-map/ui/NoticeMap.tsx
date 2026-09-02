@@ -186,7 +186,7 @@ export function NoticeMap({
           onClick={onToggleExpand}
           title={expanded ? '지도 줄이기' : '지도 넓게'}
           aria-label={expanded ? '지도 줄이기' : '지도 넓게'}
-          className="absolute right-2 top-2 z-10 hidden size-8 items-center justify-center rounded-md border border-line bg-surface text-lg leading-none text-muted shadow-sm transition-colors hover:text-ink lg:flex"
+          className="absolute right-2 top-2 z-[5] hidden size-8 items-center justify-center rounded-md border border-line bg-surface text-lg leading-none text-muted shadow-sm transition-colors hover:text-ink lg:flex"
         >
           {expanded ? '−' : '+'}
         </button>

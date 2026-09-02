@@ -19,7 +19,7 @@ export function BottomNav({ path }: { path: string }) {
   const items = me?.isAdmin ? [...BASE, { href: '#/admin', label: '어드민', match: (p: string) => p.startsWith('/admin'), icon: GridIcon }] : BASE;
 
   return (
-    <nav className="sticky bottom-0 z-10 border-t border-line bg-surface/95 backdrop-blur">
+    <nav className="sticky bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl">
         {items.map((it) => {
           const active = it.match(path);
