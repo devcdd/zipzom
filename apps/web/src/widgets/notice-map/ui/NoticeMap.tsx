@@ -69,7 +69,7 @@ export function NoticeMap({
       () => {
         if (!alive || !el.current) return;
         map.current = new kakao.maps.Map(el.current, { center: new kakao.maps.LatLng(36.5, 127.8), level: 13 });
-        clusterer.current = new kakao.maps.MarkerClusterer({ map: map.current, averageCenter: true, minLevel: 7, styles: CLUSTER_STYLES });
+        clusterer.current = new kakao.maps.MarkerClusterer({ map: map.current, averageCenter: true, minLevel: 7, minClusterSize: 1, styles: CLUSTER_STYLES });
         kakao.maps.event.addListener(map.current, 'click', () => overlay.current?.setMap(null));
         setStatus('ready');
       },
@@ -96,7 +96,7 @@ export function NoticeMap({
       const marker = new kakao.maps.Marker({ position: pos, title: m.name, image });
       kakao.maps.event.addListener(marker, 'click', () => {
         overlay.current?.setMap(null);
-        overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10 });
+        overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10, clickable: true });
         overlay.current.setMap(map.current);
         onSelectRef.current?.(m.noticeId);
       });
@@ -122,7 +122,7 @@ export function NoticeMap({
       const pos = new kakao.maps.LatLng(m.lat, m.lng);
       map.current.setLevel(4);
       map.current.panTo(pos);
-      overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10 });
+      overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10, clickable: true });
       overlay.current.setMap(map.current);
     } else {
       const bounds = new kakao.maps.LatLngBounds();

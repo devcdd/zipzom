@@ -33,12 +33,12 @@ declare namespace kakao.maps {
     getPosition(): LatLng;
   }
   class CustomOverlay {
-    constructor(opts: { position: LatLng; content: HTMLElement; yAnchor?: number; zIndex?: number });
+    constructor(opts: { position: LatLng; content: HTMLElement; yAnchor?: number; zIndex?: number; clickable?: boolean });
     setMap(m: Map | null): void;
     setPosition(p: LatLng): void;
   }
   class MarkerClusterer {
-    constructor(opts: { map: Map; averageCenter?: boolean; minLevel?: number; styles?: Record<string, string>[] });
+    constructor(opts: { map: Map; averageCenter?: boolean; minLevel?: number; minClusterSize?: number; styles?: Record<string, string>[] });
     addMarkers(markers: Marker[]): void;
     clear(): void;
   }
