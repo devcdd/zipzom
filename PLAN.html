@@ -207,7 +207,7 @@ footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);paddin
         <tr><td><b>마이홈포털 공공주택 모집공고</b><br><span class="mono">HWSPR02/rsdtRcritNtcList</span></td><td>공고 수집 <span class="tag">1차</span></td><td>data.go.kr 인증키</td><td>1,000/일</td><td>JSON</td><td>전 기관 집계. 주택유형·공급유형·지역·월임대료 구간·공고월 필터</td></tr>
         <tr><td><b>마이홈포털 공공임대주택 단지정보</b><br><span class="mono">HWSPR04/rentalHouseGwList</span></td><td>단지 마스터·형별 면적/임대료</td><td>data.go.kr 인증키</td><td>1,000/일</td><td>JSON</td><td>시도·시군구 단위 페이지 조회. 주 1회 갱신 충분</td></tr>
         <tr><td><b>LH 분양임대공고문 조회</b><br><span class="mono">B552555/lhLeaseNoticeInfo1</span></td><td>LH 공고 상태·상세 URL <span class="tag neutral">보강</span></td><td>data.go.kr 인증키</td><td>10,000/일</td><td>JSON</td><td>게시일·마감일 필수 → 최근 60일 윈도우로 조회. <code>UPP_AIS_TP_CD=06</code>(임대주택)</td></tr>
-        <tr><td><b>LH 분양임대공고별 상세정보</b><br><span class="mono">B552555/lhLeaseNoticeDtlInfo1</span></td><td>공고 상세(단지·공급·일정) <span class="tag neutral">후순위</span></td><td>data.go.kr 인증키</td><td>10,000/일</td><td>JSON</td><td>포털 문서엔 계약장소 2필드만 표기. 실제 응답 구조는 활용가이드(PDF) 확인 필요</td></tr>
+        <tr><td><b>LH 분양임대공고별 상세정보</b><br><span class="mono">B552555/lhLeaseNoticeDtlInfo1</span></td><td>공고 상세(단지·일정·첨부) <span class="tag">사용</span></td><td>data.go.kr 인증키</td><td>10,000/일</td><td>JSON</td><td>포털 문서와 달리 실응답은 8개 데이터셋: <code>dsSbd</code>(단지·주소·세대수) · <code>dsSplScdl</code>(접수·발표 일정) · <code>dsAhflInfo</code>(<b>공고문 PDF 직링크</b>, 인증 없이 다운로드). <code>SPL_INF_TP_CD</code>는 목록 API에만 있어 색인 필요 (2026-09-02 실측)</td></tr>
         <tr><td><b>SH 공고 및 공지 RSS</b><br><span class="mono">i-sh.co.kr …/rssNoticeWrite.do</span></td><td>SH 신규 공고 감지 <span class="tag neutral">보강</span></td><td>없음</td><td>제한 없음(예의상 1시간 1회)</td><td>RSS 2.0 · EUC-KR</td><td>카테고리 파라미터 무시됨. 제목에 <code>행복주택|입주자 모집</code> 포함만 저장</td></tr>
         <tr><td><b>카카오 로컬 — 주소 검색</b><br><span class="mono">dapi.kakao.com/v2/local/search/address</span></td><td>지오코딩 (서버)</td><td>REST API 키 헤더</td><td>100,000/일</td><td>JSON</td><td>결과는 <code>complexes.lat/lng</code>에 캐시. 재호출은 신규 단지만</td></tr>
         <tr><td><b>카카오맵 JavaScript SDK</b><br><span class="mono">dapi.kakao.com/v2/maps/sdk.js</span></td><td>지도 렌더 (브라우저)</td><td>JavaScript 키 + 도메인 등록</td><td>300,000/일</td><td>—</td><td>2026-07-21부터 앱에서 "카카오맵 API 활성화" 필수. 계정당 첫 앱만 무료 쿼터</td></tr>
@@ -283,7 +283,7 @@ GET https://apis.data.go.kr/B552555/lhLeaseNoticeDtlInfo1/getLeaseNoticeDtlInfo1
           <tr><td>요청 코드</td><td class="mono">PAN_SS</td><td>공고중 · 접수중 · 접수마감 · 상담요청 · 정정공고중</td></tr>
           <tr><td>응답(문서)</td><td class="mono">RNUM · UPP_AIS_TP_NM · AIS_TP_CD_NM · PAN_NM · CNP_CD_NM · PAN_SS · ALL_CNT · DTL_URL</td><td><code>AIS_TP_CD_NM = 행복주택</code>로 필터</td></tr>
           <tr><td>응답(실제)</td><td class="mono">PAN_ID · SPL_INF_TP_CD · CCR_CNNT_SYS_DS_CD · UPP_AIS_TP_CD · AIS_TP_CD · PAN_NT_ST_DT · CLSG_DT</td><td>포털 표에는 없지만 상세 API 입력값이라 실응답에 포함. 첫 호출 후 <code>raw</code> 확인</td></tr>
-          <tr><td>상세 응답</td><td class="mono">CTRT_PLC_ADR · CTRT_PLC_DTL_ADR (+ 단지/공급/일정 데이터셋)</td><td>포털 문서 미기재. 활용가이드 PDF에서 확정. 마이홈이 커버하므로 후순위</td></tr>
+          <tr><td>상세 응답</td><td class="mono">dsSbd · dsSplScdl · dsAhflInfo · dsCtrtPlc · dsEtcInfo (+ *Nm 라벨셋)</td><td>2026-09-02 실측. dsAhflInfo.AHFL_URL = apply.lh.or.kr/lhapply/lhFile.do?fileid=… (공고문 PDF/hwp)</td></tr>
         </tbody>
       </table></div>
     </div>
@@ -571,6 +571,7 @@ match(profile, notice) =
 │        ├─ entities/     notice · profile · region · match · user
 │        └─ shared/       api(request) · lib(format·useAsync) · ui(Tag·PageState) · config
 ├─ db/schema.sql          DDL + 시드 (compose initdb 마운트)
+├─ db/migrations/         이미 뜬 DB용. 재실행 안전하게 쓰고, 배포 workflow가 매번 순서대로 적용
 ├─ docker-compose.yml     postgres:17-alpine · 호스트 5433
 ├─ .env.example · .env    키는 .env에만
 ├─ package.json · pnpm-workspace.yaml
@@ -609,7 +610,7 @@ pnpm dev:web                    # http://localhost:5173  (#/ 공고 · #/profile
       <tr><td>카카오 로그인 · 어드민 권한</td><td><span class="tag">완료</span></td><td>서버 코드 플로우(<code>/api/auth/kakao</code> → callback → <code>users</code> upsert), HMAC 서명 쿠키 세션(라이브러리 없음, <code>SESSION_SECRET</code>). 비로그인 프로필은 localStorage, 로그인하면 서버로 이관. 매칭은 <code>POST /api/matches</code>에 프로필 본문. 어드민은 <code>ADMIN_EMAILS</code>의 카카오 이메일만(<code>AdminGuard</code>)</td></tr>
       <tr><td>지도 (카카오맵)</td><td><span class="tag">완료</span></td><td>카카오맵 활성화 후 지오코딩 127/127 성공. 홈·전체공고에 마커 지도(클러스터·말풍선·카드 스크롤 연동). JS 키는 루트 <code>.env</code>의 <code>VITE_KAKAO_JS_KEY</code></td></tr>
       <tr><td>SH 공고 상세</td><td><span class="tag">완료</span></td><td>RSS 본문 파싱으로 접수기간·당첨자발표일·공급호수 (<code>parseShNotice</code>). 단지 표는 첨부 공고문 PDF를 <code>innoFD.do</code>로 직접 받아(인증 불필요) gpt-5.6-luna에 PDF째 넣고 json_schema strict로 추출 → <code>notice_extractions</code>(PENDING) → 어드민 "추출 검수" 탭에서 셀 수정 후 승인 시 <code>notice_houses</code> 교체·지오코딩·시군구 채움. 2026-09-02 실측: 62개 단지, 공급호수 합 1,484(RSS와 일치), 좌표 62/62, 건당 약 60원(입력 19만 토큰·44초)</td></tr>
-      <tr><td>단지별 모집계층 매핑</td><td><span class="tag neutral">보류</span></td><td>마이홈 API엔 계층 필드 없음(제목에만 간혹). SH PDF는 추출 가능하나 월 1~2건뿐이라 반쪽 기능. 운영해 보고 필요하면 LH 공고문 PDF 다운로드 경로 확인 → 같은 LLM 파이프라인에 태워 <code>notice_houses.eligible_groups</code>. 값싼 선행: 제목 정규식(고령자·청년 전용)으로 <code>notices.target_groups</code></td></tr>
+      <tr><td>공고별 입주자격 · 단지별 배정 계층</td><td><span class="tag">완료</span></td><td>SH·LH 공고문 PDF를 같은 LLM 파이프라인으로. 계층별 <code>notice_eligibility</code>(나이·소득%·자산·자동차·<b>exempt</b>(명시적 배제)·조건 문장) + <code>notice_houses.eligible_groups</code>. 어드민 검수 승인 후 반영. 매칭은 공고별 기준이 있으면 그걸로 판정(자격완화 공고는 공통 규칙 탈락자도 붙음), 없으면 공통 규칙. 카드에 "지원 자격" 칩·단지별 계층 태그. LH는 마이홈 url의 panId → 상세 API → PDF 직링크라 리버싱 불필요. 2026-09-02 실측: 진천성석 공고 6계층·3단지, 약 45원</td></tr>
       <tr><td>마이홈 단지정보(HWSPR04) → <code>complexes</code></td><td><span class="tag neutral">대기</span></td><td>필수 파라미터(지역코드) 있어 코드표 필요. 공고 행에 단지명·주소·세대수가 이미 있어 1차 불필요</td></tr>
       <tr><td>LH 공고 API 보강</td><td><span class="tag neutral">대기</span></td><td>마이홈이 LH 공고를 모두 커버(293/319행). 상태 정밀도 필요 시 도입</td></tr>
       <tr><td>알림 채널</td><td><span class="tag neutral">결정 필요</span></td><td>현재 "NEW" 배지(매칭 3일 이내, 로그인 시)로 대체. 카카오 이메일이 있으니 이메일 알림이 가장 짧은 길</td></tr>
