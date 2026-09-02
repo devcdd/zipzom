@@ -50,11 +50,12 @@ jobs:
         run: |
           test -f "$DEPLOY_DIR/.env" || { echo "::error::$DEPLOY_DIR/.env 없음. .env.example 운영 섹션 참고해 만들 것"; exit 1; }
 
-      - name: compose·schema 복사
+      - name: compose·schema·migrations 복사
         run: |
-          mkdir -p "$DEPLOY_DIR/db"
+          mkdir -p "$DEPLOY_DIR/db/migrations"
           cp docker-compose.prod.yml "$DEPLOY_DIR/"
           cp db/schema.sql "$DEPLOY_DIR/db/"
+          cp db/migrations/*.sql "$DEPLOY_DIR/db/migrations/" 2>/dev/null || true
 
       - name: 재기동
         working-directory: ${{ env.DEPLOY_DIR }}
@@ -64,6 +65,16 @@ jobs:
           docker compose -f docker-compose.prod.yml pull
           docker compose -f docker-compose.prod.yml up -d --remove-orphans
           docker image prune -f >/dev/null
+
+      # 마이그레이션은 전부 재실행 안전(if not exists)하게 쓴다. 이력 테이블 없이 매 배포마다 순서대로 적용
+      - name: DB 마이그레이션
+        working-directory: ${{ env.DEPLOY_DIR }}
+        run: |
+          for f in db/migrations/*.sql; do
+            [ -f "$f" ] || continue
+            echo "== $f"
+            docker compose -f docker-compose.prod.yml exec -T db psql -U "${POSTGRES_USER:-zipzom}" -d "${POSTGRES_DB:-zipzom}" -v ON_ERROR_STOP=1 -q < "$f"
+          done
 
       - name: 헬스체크
         run: |
