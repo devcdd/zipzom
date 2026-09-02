@@ -11,6 +11,16 @@ export interface SyncReport {
   geocode: { attempted: number; resolved: number; error?: string };
 }
 
+export interface SyncRun {
+  source: string;
+  startedAt: string;
+  finishedAt: string | null;
+  fetched: number | null;
+  upserted: number | null;
+  error: string | null;
+}
+
 export const syncApi = {
   run: () => request<SyncReport>('/admin/sync', { method: 'POST' }),
+  last: () => request<SyncRun[]>('/admin/sync/last'),
 };

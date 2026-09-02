@@ -49,6 +49,10 @@ const EXEMPT: { key: string; label: string }[] = [
 ];
 
 const numOrNull = (raw: string) => (raw === '' ? null : Number(raw));
+const fmtTs = (iso: string) => {
+  const d = new Date(iso);
+  return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
 
 /** 원문 PDF 옆에서 자격 기준·단지 표를 셀 단위로 고쳐 승인. 승인 전엔 아무것도 반영되지 않는다 */
 function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () => void }) {
@@ -97,7 +101,8 @@ function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () =
             <Tag tone={STATUS[item.status].tone}>{STATUS[item.status].label}</Tag>
             <Tag tone="ink">{item.source}</Tag>
             <span className="text-xs text-muted">
-              #{item.noticeId} · {item.model ?? '—'}
+              #{item.noticeId} · {item.model ?? '—'} · 추출 {fmtTs(item.createdAt)}
+              {item.reviewedAt && ` · ${item.status === 'REJECTED' ? '반려' : '승인'} ${fmtTs(item.reviewedAt)}`}
             </span>
           </div>
           <h2 className="mt-1 truncate text-sm font-semibold">{item.title}</h2>

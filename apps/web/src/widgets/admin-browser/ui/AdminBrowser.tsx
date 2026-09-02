@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { adminApi, DataTable, TableList } from '@/features/admin-tables';
 import { ExtractionReview } from '@/features/extraction-review';
 import { MergeReview } from '@/features/merge-review';
-import { SyncButton } from '@/features/run-sync';
+import { LastSync, SyncButton } from '@/features/run-sync';
 import { useAsync } from '@/shared/lib';
 import { PageState } from '@/shared/ui';
 
@@ -47,7 +47,10 @@ export function AdminBrowser() {
             ))}
           </div>
         </div>
-        <SyncButton onDone={refresh} />
+        <div className="flex flex-col items-end gap-1">
+          <SyncButton onDone={refresh} />
+          <LastSync refreshKey={tables.data} />
+        </div>
       </div>
       {tab === 'review' && <ExtractionReview key={String(tables.data?.length)} />}
       {tab === 'merge' && <MergeReview />}

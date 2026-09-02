@@ -59,6 +59,15 @@ export class AdminController {
     return this.sync.runAll();
   }
 
+  /** 소스별 마지막 실행. 진행 중이면 finishedAt null */
+  @Get('sync/last')
+  lastSync() {
+    return this.db.query(
+      `select distinct on (source) source, started_at as "startedAt", finished_at as "finishedAt", fetched, upserted, error
+       from sync_runs order by source, started_at desc`,
+    );
+  }
+
   /** 자동 병합된 중복 공고 쌍. 대표(canonical)만 목록에 노출되고 duplicate는 숨겨진 상태다. */
   @Get('duplicates')
   duplicates() {
