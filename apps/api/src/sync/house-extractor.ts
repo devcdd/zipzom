@@ -98,9 +98,9 @@ const prompt = (withHouseDetail: boolean) => `이 행복주택 입주자 모집�
 
 1) eligibility: 계층별 입주자격 기준. 계층마다 label(공고문 표기명), ageMin/ageMax(만 나이, 없으면 null),
 incomePct(전년도 도시근로자 가구당 월평균소득 대비 %, 기본 기준), dualIncomePct(맞벌이 완화 %, 없으면 null),
-assetLimit(총자산 기준 원), carLimit(자동차가액 기준 원, 소유 불가면 0),
+assetLimit(총자산 기준, 만원 단위 정수: "3억 4,500만원"→34500), carLimit(자동차가액 기준, 만원 단위 정수: "4,542만원"→4542, 소유 불가면 0),
 exempt(공고가 "이번 모집에 한해 배제"처럼 명시적으로 적용하지 않는다고 한 요건: income·asset·car 중. 단순히 언급이 없는 건 exempt가 아니라 null), conditions(우선공급·거주지·재직 요건 등 그 계층에만 해당하는 조건을 짧은 문장으로, 최대 5개).
-공고문에 명시되지 않은 숫자는 null. 금액은 원 단위 정수(천원·만원 표기 환산 주의).
+공고문에 명시되지 않은 숫자는 null. 자산·자동차는 만원 단위, 그 외 금액(보증금·월세)은 원 단위 정수.
 ${GROUP_GUIDE}
 
 2) houses: 이번에 공급하는 단지 목록. 단지마다 name(단지명)${
@@ -146,5 +146,11 @@ export async function extractFromPdf(pdf: Uint8Array, filename: string, opts: { 
   const text = content.find((c) => c.type === 'output_text')?.text;
   if (!text) throw new Error(`openai empty output (status ${json.status})`);
   const parsed = z.object({ houses: z.array(extractedHouseSchema), eligibility: z.array(extractedEligibilitySchema) }).parse(JSON.parse(text));
-  return { ...parsed, usage: json.usage ?? null };
+  // 자산·자동차는 만원으로 받아 원으로 저장. 모델이 단위를 흔들어서(3450 / 345000000 혼용) 만원 고정이 더 안정적
+  const eligibility = parsed.eligibility.map((e) => ({
+    ...e,
+    assetLimit: e.assetLimit == null ? null : e.assetLimit * 10_000,
+    carLimit: e.carLimit == null ? null : e.carLimit * 10_000,
+  }));
+  return { houses: parsed.houses, eligibility, usage: json.usage ?? null };
 }

@@ -26,15 +26,16 @@ const LH_COLS: HouseCol[] = [
   { key: 'supplyCount', label: '공급호수', num: true },
 ];
 
-type EligCol = { key: keyof ExtractedEligibility; label: string; num?: boolean; width: string };
+type EligCol = { key: keyof ExtractedEligibility; label: string; num?: boolean; width: string; manwon?: boolean };
 const ELIG_COLS: EligCol[] = [
   { key: 'label', label: '공고 표기', width: 'min-w-32' },
   { key: 'ageMin', label: '나이≥', num: true, width: 'w-16' },
   { key: 'ageMax', label: '나이≤', num: true, width: 'w-16' },
   { key: 'incomePct', label: '소득%', num: true, width: 'w-16' },
   { key: 'dualIncomePct', label: '맞벌이%', num: true, width: 'w-16' },
-  { key: 'assetLimit', label: '총자산(원)', num: true, width: 'w-32' },
-  { key: 'carLimit', label: '자동차(원)', num: true, width: 'w-28' },
+  // DB는 원, 화면은 만원 (공고문 표기 단위)
+  { key: 'assetLimit', label: '총자산(만원)', num: true, width: 'w-24', manwon: true },
+  { key: 'carLimit', label: '자동차(만원)', num: true, width: 'w-24', manwon: true },
 ];
 
 const EMPTY_HOUSE: ExtractedHouse = { name: '', address: null, supplyCount: null, totalHouseholds: null, minDeposit: null, minMonthlyRent: null, groups: [] };
@@ -175,11 +176,16 @@ function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () =
                           <input
                             className={`field px-2 py-1 ${c.width} ${c.num ? 'text-right' : ''}`}
                             type={c.num ? 'number' : 'text'}
-                            value={(e[c.key] as string | number | null) ?? ''}
-                            onChange={(ev) => setEl(i, c.key, c.num ? numOrNull(ev.target.value) : ev.target.value)}
+                            value={c.manwon && e[c.key] != null ? Math.round((e[c.key] as number) / 10_000) : ((e[c.key] as string | number | null) ?? '')}
+                            onChange={(ev) => {
+                              const v = c.num ? numOrNull(ev.target.value) : ev.target.value;
+                              setEl(i, c.key, c.manwon && typeof v === 'number' ? v * 10_000 : v);
+                            }}
                           />
                         ) : (
-                          <span className={c.num ? 'block text-right tabular-nums' : ''}>{(e[c.key] as string | number | null)?.toLocaleString('ko-KR') ?? '—'}</span>
+                          <span className={c.num ? 'block text-right tabular-nums' : ''}>
+                            {c.manwon && e[c.key] != null ? `${Math.round((e[c.key] as number) / 10_000).toLocaleString('ko-KR')}만` : ((e[c.key] as string | number | null)?.toLocaleString('ko-KR') ?? '—')}
+                          </span>
                         )}
                       </td>
                     ))}
