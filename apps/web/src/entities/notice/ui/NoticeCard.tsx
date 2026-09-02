@@ -89,21 +89,22 @@ export function NoticeCard({
       {houses.length > 0 && (
         <ul className="divide-y divide-line rounded-lg border border-line text-[13px]">
           {shown.map((h) => (
-            <li key={h.id} className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 px-3 py-2">
-              <span className="flex min-w-0 items-center gap-1.5">
-                <span className="truncate font-medium">{h.name ?? h.address}</span>
+            <li key={h.id} className="flex flex-col gap-0.5 px-3 py-2">
+              {/* 단지명은 자르지 않는다. 이름 + 배정 계층이 첫 줄을 채우고 필요하면 줄바꿈 */}
+              <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                <span className="font-medium">{h.name ?? h.address}</span>
                 {h.eligibleGroups?.map((g) => (
-                  <span key={g} className={`shrink-0 rounded px-1 text-[10px] leading-4 ${hit.has(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`}>
+                  <span key={g} className={`rounded px-1 text-[10px] leading-4 ${hit.has(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`}>
                     {groupLabel(g)}
                   </span>
                 ))}
               </span>
-              <span className="whitespace-nowrap text-right text-muted">
-                {[h.supplyCount ? `${h.supplyCount}호 모집` : h.totalHouseholds ? `${h.totalHouseholds}세대` : null, fmtArea(h.areaMin, h.areaMax)].filter(Boolean).join(' · ')}
-              </span>
-              <span className="truncate text-muted">{h.address ?? ''}</span>
-              <span className="whitespace-nowrap text-right">
-                {fmtRent(h.minDeposit, h.minMonthlyRent) ?? <span className="text-muted">임대조건 공고문 참조</span>}
+              {h.address && <span className="text-muted">{h.address}</span>}
+              <span className="flex flex-wrap gap-x-3 gap-y-0.5">
+                <span className="text-muted">
+                  {[h.supplyCount ? `${h.supplyCount}호 모집` : h.totalHouseholds ? `${h.totalHouseholds}세대` : null, fmtArea(h.areaMin, h.areaMax)].filter(Boolean).join(' · ')}
+                </span>
+                <span className="ml-auto whitespace-nowrap">{fmtRent(h.minDeposit, h.minMonthlyRent) ?? <span className="text-muted">임대조건 공고문 참조</span>}</span>
               </span>
             </li>
           ))}
