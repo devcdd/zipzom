@@ -12,7 +12,7 @@ const newlywed: Rule = { ...youth, code: 'NEWLYWED', label: '신혼', minAge: nu
 const single: Profile = {
   birthDate: '1995-03-10', maritalStatus: 'SINGLE', marriedAt: null, childrenCount: 0, youngestChildBirthDate: null,
   householdSize: 1, householdMonthlyIncome: 4_000_000, dualIncome: false, isHomeless: true, totalAssets: 50_000_000,
-  carValue: 0, isStudent: false, isHousingBenefitRecipient: false,
+  carValue: 0, isStudent: false, isHousingBenefitRecipient: false, hasSubscriptionAccount: false, isIndustrialWorker: false, employedYears: null,
 };
 
 describe('matcher', () => {
