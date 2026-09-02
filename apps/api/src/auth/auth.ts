@@ -11,6 +11,7 @@ export interface SessionUser {
 
 export const SESSION_COOKIE = 'zz_session';
 const SESSION_DAYS = 30;
+const REFRESH_WITHIN_DAYS = 7; // 만료가 이 안으로 들어오면 요청 때 쿠키를 새로 발급 (슬라이딩)
 
 const secret = () => {
   const s = process.env.SESSION_SECRET;
@@ -20,12 +21,16 @@ const secret = () => {
 const sign = (payload: string) => createHmac('sha256', secret()).update(payload).digest('base64url');
 
 /** 서명 쿠키 토큰. DB 세션 테이블 없이 사용자 정보를 그대로 담는다 (ponytail: 강제 로그아웃 필요해지면 세션 테이블) */
-export function issueToken(user: Omit<SessionUser, 'isAdmin'>): string {
-  const payload = Buffer.from(JSON.stringify({ ...user, exp: Date.now() + SESSION_DAYS * 86_400_000 })).toString('base64url');
+export function issueToken(user: Omit<SessionUser, 'isAdmin'>, exp = Date.now() + SESSION_DAYS * 86_400_000): string {
+  const payload = Buffer.from(JSON.stringify({ ...user, exp })).toString('base64url');
   return `${payload}.${sign(payload)}`;
 }
 
 export function verifyToken(token: string | undefined): SessionUser | null {
+  return decodeToken(token)?.user ?? null;
+}
+
+function decodeToken(token: string | undefined): { user: SessionUser; exp: number } | null {
   if (!token) return null;
   const [payload, sig] = token.split('.');
   if (!payload || !sig) return null;
@@ -34,7 +39,7 @@ export function verifyToken(token: string | undefined): SessionUser | null {
   try {
     const { id, email, nickname, exp } = JSON.parse(Buffer.from(payload, 'base64url').toString()) as SessionUser & { exp: number };
     if (Date.now() > exp) return null;
-    return { id, email, nickname, isAdmin: isAdminEmail(email) };
+    return { user: { id, email, nickname, isAdmin: isAdminEmail(email) }, exp };
   } catch {
     return null;
   }
@@ -77,6 +82,14 @@ export const setSession = (req: Request, res: Response, user: Omit<SessionUser, 
   res.cookie(SESSION_COOKIE, issueToken(user), cookieOptions(req, SESSION_DAYS * 86_400_000));
 
 export const currentUser = (req: Request): SessionUser | null => verifyToken(readCookie(req, SESSION_COOKIE));
+
+/** 유효한 세션이 만료 7일 안이면 30일짜리로 재발급. 쓰는 동안은 안 끊기게. 갱신했으면 true */
+export function refreshSessionIfNeeded(req: Request, res: Response): boolean {
+  const d = decodeToken(readCookie(req, SESSION_COOKIE));
+  if (!d || d.exp - Date.now() > REFRESH_WITHIN_DAYS * 86_400_000) return false;
+  setSession(req, res, d.user);
+  return true;
+}
 
 /** 컨트롤러 인자용. 로그인 안 했으면 null (가드와 조합해 필수 여부 결정) */
 export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionContext) => currentUser(ctx.switchToHttp().getRequest<Request>()));
