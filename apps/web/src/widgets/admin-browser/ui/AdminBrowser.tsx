@@ -1,0 +1,70 @@
+import { useState } from 'react';
+import { adminApi, DataTable, TableList } from '@/features/admin-tables';
+import { ExtractionReview } from '@/features/extraction-review';
+import { SyncButton } from '@/features/run-sync';
+import { useAsync } from '@/shared/lib';
+import { PageState } from '@/shared/ui';
+
+const LIMIT = 50;
+
+type Tab = 'db' | 'review';
+
+export function AdminBrowser() {
+  const [tab, setTab] = useState<Tab>('review');
+  const tables = useAsync(() => adminApi.tables(), []);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const table = selected ?? tables.data?.[0]?.name ?? null;
+  const page = useAsync(() => (table ? adminApi.rows(table, LIMIT, offset) : Promise.resolve(null)), [table, offset]);
+
+  const refresh = () => {
+    tables.reload();
+    page.reload();
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-semibold">어드민</h1>
+          <div className="flex gap-1 rounded-md bg-surface-2 p-0.5 text-xs">
+            {(
+              [
+                ['review', '추출 검수'],
+                ['db', 'DB'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setTab(k)}
+                className={`rounded px-2.5 py-1 font-medium transition-colors ${tab === k ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <SyncButton onDone={refresh} />
+      </div>
+      {tab === 'review' && <ExtractionReview key={String(tables.data?.length)} />}
+      <div className={`grid gap-4 lg:grid-cols-[220px_1fr] ${tab === 'db' ? '' : 'hidden'}`}>
+        <PageState loading={tables.loading} error={tables.error}>
+          <TableList
+            tables={tables.data ?? []}
+            selected={table}
+            onSelect={(n) => {
+              setSelected(n);
+              setOffset(0);
+            }}
+          />
+        </PageState>
+        <div className="min-w-0">
+          <PageState loading={page.loading && !page.data} error={page.error}>
+            {page.data && <DataTable key={table} page={page.data} offset={offset} limit={LIMIT} onPage={setOffset} />}
+          </PageState>
+        </div>
+      </div>
+    </div>
+  );
+}
