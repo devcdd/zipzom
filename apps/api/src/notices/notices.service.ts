@@ -16,6 +16,20 @@ export interface House {
   minMonthlyRent: number | null;
   lat: number | null;
   lng: number | null;
+  eligibleGroups: string[] | null;
+}
+
+export interface NoticeEligibility {
+  code: string;
+  label: string;
+  ageMin: number | null;
+  ageMax: number | null;
+  incomePct: number | null;
+  dualIncomePct: number | null;
+  assetLimit: number | null;
+  carLimit: number | null;
+  exempt: string[];
+  conditions: string[];
 }
 
 export interface Notice {
@@ -35,6 +49,7 @@ export interface Notice {
   contact: string | null;
   phase: Phase;
   houses: House[];
+  eligibility: NoticeEligibility[];
 }
 
 export interface ListFilter {
@@ -67,6 +82,8 @@ export class NoticesService {
          from notices n
          -- 정정공고가 가리키는 이전 공고는 숨김
          where not exists (select 1 from notices n2 where n2.source = n.source and n2.raw->>'beforePblancId' = n.source_id)
+           -- 마이홈·LH에 같이 올라온 공고는 대표 1건만 (linkDuplicates가 채운다)
+           and n.duplicate_of is null
        )
        select n.id, n.source, n.source_id as "sourceId", n.title, n.institution,
          n.house_type as "houseType", n.supply_type as "supplyType", n.status,
@@ -74,6 +91,7 @@ export class NoticesService {
          n.apply_end_on::text as "applyEndOn", n.winner_announce_on::text as "winnerAnnounceOn",
          n.detail_url as "detailUrl", n.contact, n.phase,
          coalesce(h.houses, '[]'::json) as houses,
+         coalesce(el.eligibility, '[]'::json) as eligibility,
          count(*) over() as total
        from n
        left join lateral (
@@ -82,9 +100,16 @@ export class NoticesService {
            'sidoCode', nh.sido_code, 'sigunguCode', nh.sigungu_code,
            'totalHouseholds', nh.total_households, 'supplyCount', nh.supply_count,
            'minDeposit', nh.min_deposit, 'minMonthlyRent', nh.min_monthly_rent,
-           'lat', nh.lat, 'lng', nh.lng) order by nh.id) as houses
+           'lat', nh.lat, 'lng', nh.lng, 'eligibleGroups', nh.eligible_groups) order by nh.id) as houses
          from notice_houses nh where nh.notice_id = n.id
        ) h on true
+       left join lateral (
+         select json_agg(json_build_object(
+           'code', ne.code, 'label', ne.label, 'ageMin', ne.age_min, 'ageMax', ne.age_max,
+           'incomePct', ne.income_pct, 'dualIncomePct', ne.dual_income_pct, 'assetLimit', ne.asset_limit,
+           'carLimit', ne.car_limit, 'exempt', ne.exempt, 'conditions', ne.conditions) order by ne.code) as eligibility
+         from notice_eligibility ne where ne.notice_id = n.id
+       ) el on true
        where ($1::text[] is null or n.supply_type = any($1))
          and ($2::text[] is null or n.phase = any($2))
          and (($3::text[] is null and $4::text[] is null) or exists (

@@ -1,4 +1,4 @@
-import { ageOn, evaluate, type Profile, type Rule } from './matcher.js';
+import { applyOverride, ageOn, evaluate, type Profile, type Rule } from './matcher.js';
 
 const today = new Date(2026, 8, 1);
 const base = 3_813_363; // 1인 100%
@@ -59,5 +59,30 @@ describe('matcher', () => {
 
   it('주택 소유면 어떤 계층도 탈락', () => {
     expect(evaluate({ ...single, isHomeless: false }, youth, base, today).ok).toBe(false);
+  });
+});
+
+describe('applyOverride', () => {
+  const base = {
+    code: 'SENIOR', supplyType: '행복주택', label: '고령자', minAge: 65, maxAge: null, requiresUnmarried: false, marriageWithinYears: null, childMaxAge: null,
+    incomePct: 100, dualIncomePct: null, bonusPct1p: 20, bonusPct2p: 10, assetLimit: 345_000_000, carLimit: 45_420_000, maxResidenceYears: 20,
+  };
+  const o = { code: 'SENIOR', ageMin: null, ageMax: null, incomePct: null, dualIncomePct: null, assetLimit: null, carLimit: 40_000_000 };
+
+  it('null 필드는 공통 규칙을 유지하고 값이 있으면 덮어쓴다', () => {
+    const r = applyOverride(base, o);
+    expect(r.incomePct).toBe(100);
+    expect(r.carLimit).toBe(40_000_000);
+  });
+
+  it('exempt는 명시적 배제 → 해당 요건 미적용(null)', () => {
+    const r = applyOverride(base, { ...o, exempt: ['income', 'asset'] });
+    expect(r.incomePct).toBeNull();
+    expect(r.assetLimit).toBeNull();
+    expect(r.carLimit).toBe(40_000_000);
+  });
+
+  it('override 없으면 그대로', () => {
+    expect(applyOverride(base, undefined)).toBe(base);
   });
 });

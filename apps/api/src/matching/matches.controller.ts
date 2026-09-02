@@ -4,7 +4,7 @@ import { parse } from '../validate.js';
 import { Db } from '../db.js';
 import { NoticesService } from '../notices/notices.service.js';
 import { profileSchema } from '../profiles/profiles.service.js';
-import { evaluate, type Rule } from './matcher.js';
+import { applyOverride, evaluate, type Rule } from './matcher.js';
 
 @Controller('matches')
 export class MatchesController {
@@ -34,9 +34,8 @@ export class MatchesController {
     );
     const evaluations = rules.map((r) => evaluate(profile, r, base?.amount ?? 0));
     const matchedRules = evaluations.filter((e) => e.ok).map((e) => e.code);
-    if (matchedRules.length === 0) return { eligible: false, evaluations, notices: [] };
-    // 규칙마다 열어주는 공급유형이 다르다. 행복주택 6계층에 다 걸려도 든든전세는 무주택이면 따로 열린다
-    const supplyTypes = [...new Set(rules.filter((r) => matchedRules.includes(r.code)).map((r) => r.supplyType))];
+    // 공통 규칙에서 떨어져도 공고별 기준(자격완화 등)으로 붙을 수 있으니 규칙이 있는 공급유형은 모두 후보로 가져온다
+    const supplyTypes = [...new Set(rules.map((r) => r.supplyType))];
 
     // 'XX000'은 시도 전체 선택. 관심 지역이 없으면 거주 시도
     const sigungu = profile.preferredSigunguCodes.filter((c) => !c.endsWith('000'));
@@ -51,17 +50,35 @@ export class MatchesController {
       offset: 0,
     });
 
+    // 공고별 자격 기준이 있으면 그걸로 판정, 없으면 그 공급유형의 공통 규칙 통과 여부. 공통 규칙에 없는 계층(INDUSTRIAL·OTHER)은 판정 불가라 제외
+    const perNotice = items.map((n) => {
+      if (n.eligibility.length === 0) {
+        const codes = rules.filter((r) => r.supplyType === n.supplyType && matchedRules.includes(r.code)).map((r) => r.code);
+        return { notice: n, codes, overridden: false };
+      }
+      const codes = rules
+        .filter((r) => n.eligibility.some((e) => e.code === r.code))
+        .filter((r) => evaluate(profile, applyOverride(r, n.eligibility.find((e) => e.code === r.code)), base?.amount ?? 0).ok)
+        .map((r) => r.code);
+      return { notice: n, codes, overridden: true };
+    });
+    const passed = perNotice.filter((p) => p.codes.length > 0);
+
     const matchedAt = new Map<number, string>();
-    if (items.length && user) {
+    if (passed.length && user) {
       const rows = await this.db.query<{ notice_id: number; matched_at: Date }>(
         `insert into user_notice_matches (user_id, notice_id, matched_rules)
          select $1, unnest($2::bigint[]), $3::text[]
          on conflict (user_id, notice_id) do update set matched_rules = excluded.matched_rules
          returning notice_id, matched_at`,
-        [user.id, items.map((n) => n.id), matchedRules],
+        [user.id, passed.map((p) => p.notice.id), matchedRules],
       );
       for (const r of rows) matchedAt.set(r.notice_id, r.matched_at.toISOString());
     }
-    return { eligible: true, evaluations, notices: items.map((n) => ({ ...n, matchedAt: matchedAt.get(n.id) })) };
+    return {
+      eligible: matchedRules.length > 0 || passed.length > 0,
+      evaluations,
+      notices: passed.map((p) => ({ ...p.notice, matchedAt: matchedAt.get(p.notice.id), matchedCodes: p.codes, noticeSpecific: p.overridden })),
+    };
   }
 }

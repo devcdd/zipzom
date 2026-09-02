@@ -35,6 +35,32 @@ export interface Rule {
   maxResidenceYears: number | null;
 }
 
+/** 공고문에서 뽑은 공고별 기준. null 필드는 공통 규칙 유지 */
+export interface RuleOverride {
+  code: string;
+  ageMin: number | null;
+  ageMax: number | null;
+  incomePct: number | null;
+  dualIncomePct: number | null;
+  assetLimit: number | null;
+  carLimit: number | null;
+  exempt?: string[]; // 'income' | 'asset' | 'car' — 공고가 명시적으로 배제한 요건은 null(미적용)로 만든다
+}
+
+export const applyOverride = (rule: Rule, o: RuleOverride | undefined): Rule => {
+  if (!o) return rule;
+  const ex = new Set(o.exempt ?? []);
+  return {
+    ...rule,
+    minAge: o.ageMin ?? rule.minAge,
+    maxAge: o.ageMax ?? rule.maxAge,
+    incomePct: ex.has('income') ? null : (o.incomePct ?? rule.incomePct),
+    dualIncomePct: ex.has('income') ? null : (o.dualIncomePct ?? rule.dualIncomePct),
+    assetLimit: ex.has('asset') ? null : (o.assetLimit ?? rule.assetLimit),
+    carLimit: ex.has('car') ? null : (o.carLimit ?? rule.carLimit),
+  };
+};
+
 export interface Check {
   label: string;
   ok: boolean;
