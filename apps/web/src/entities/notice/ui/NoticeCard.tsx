@@ -22,6 +22,7 @@ export function NoticeCard({
   bookmarked,
   highlightGroups,
   onShowMap,
+  onShowHouse,
   onToggleBookmark,
 }: {
   notice: Notice;
@@ -30,6 +31,7 @@ export function NoticeCard({
   bookmarked?: boolean;
   highlightGroups?: string[]; // 내 매칭에서 통과한 계층 → 자격·배정 칩 강조
   onShowMap?: () => void;
+  onShowHouse?: (houseId: number) => void; // 단지 행 클릭 → 지도에서 그 단지
   onToggleBookmark?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -87,9 +89,13 @@ export function NoticeCard({
         )}
       </div>
       {houses.length > 0 && (
-        <ul className="divide-y divide-line rounded-lg border border-line text-[13px]">
+        <ul className="divide-y divide-line border-y border-line text-[13px]">
           {shown.map((h) => (
-            <li key={h.id} className="flex flex-col gap-0.5 px-3 py-2">
+            <li
+              key={h.id}
+              onClick={onShowHouse && h.lat != null ? () => onShowHouse(h.id) : undefined}
+              className={`flex flex-col gap-0.5 py-2 ${onShowHouse && h.lat != null ? 'cursor-pointer transition-colors hover:bg-surface-2/60' : ''}`}
+            >
               {/* 단지명은 자르지 않는다. 이름 + 배정 계층이 첫 줄을 채우고 필요하면 줄바꿈 */}
               <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                 <span className="font-medium">{h.name ?? h.address}</span>
@@ -113,7 +119,7 @@ export function NoticeCard({
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
-                className="w-full px-3 py-2 text-left text-xs text-brand hover:bg-surface-2"
+                className="w-full py-2 text-left text-xs text-brand hover:bg-surface-2"
               >
                 {expanded ? '접기' : `단지 ${houses.length - 3}곳 더 보기`}
               </button>

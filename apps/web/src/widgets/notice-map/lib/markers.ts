@@ -4,6 +4,7 @@ import { fmtRent } from '@/shared/lib';
 export interface MapMarker {
   key: string;
   noticeId: number;
+  houseId: number;
   lat: number;
   lng: number;
   name: string;
@@ -19,6 +20,7 @@ export function noticesToMarkers(notices: Notice[]): MapMarker[] {
       .map((h) => ({
         key: `${n.id}:${h.id}`,
         noticeId: n.id,
+        houseId: h.id,
         lat: h.lat,
         lng: h.lng,
         name: h.name ?? h.address ?? n.title,

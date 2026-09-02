@@ -83,6 +83,7 @@ export function HomePage() {
                             highlightGroups={n.matchedCodes}
                             onToggleBookmark={() => bookmarks.toggle(n.id)}
                             onShowMap={() => showOnMap(n.id)}
+                            onShowHouse={(hid) => showOnMap(n.id, hid)}
                           />
                         ))}
                       </div>

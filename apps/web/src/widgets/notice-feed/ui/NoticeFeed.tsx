@@ -48,6 +48,7 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
                 bookmarked={bookmarks.ids.has(n.id)}
                 onToggleBookmark={() => bookmarks.toggle(n.id)}
                 onShowMap={() => showOnMap(n.id)}
+                onShowHouse={(hid) => showOnMap(n.id, hid)}
               />
             ))}
           </div>

@@ -39,7 +39,8 @@ export const fmtArea = (min: number | null | undefined, max: number | null | und
   const lo = min ?? max!;
   const hi = max ?? min!;
   const py = (m: number) => Math.round(m / 3.3058);
-  const m2 = lo === hi ? `${Math.round(lo)}㎡` : `${Math.round(lo)}~${Math.round(hi)}㎡`;
+  const [rl, rh] = [Math.round(lo), Math.round(hi)];
+  const m2 = rl === rh ? `${rl}㎡` : `${rl}~${rh}㎡`;
   const p = py(lo) === py(hi) ? `${py(lo)}평` : `${py(lo)}~${py(hi)}평`;
   return `${m2} · ${p}`;
 };

@@ -32,6 +32,7 @@ const CLUSTER_STYLES: Record<string, string>[] = [
 /** 공고 단지 마커 지도. 마커 클릭 → 말풍선 + onSelect(noticeId). */
 export interface MapFocus {
   noticeId: number;
+  houseId?: number; // 단지 행 클릭 시 그 단지만
   at: number; // 같은 공고 재클릭도 다시 트리거되게 타임스탬프
 }
 
@@ -132,7 +133,7 @@ export function NoticeMap({
   // 카드의 지도 아이콘 클릭 → 해당 공고 단지로 이동. 단지 1곳이면 줌인+말풍선, 여러 곳이면 bounds
   useEffect(() => {
     if (!focus || status !== 'ready' || !map.current) return;
-    const targets = markersRef.current.filter((m) => m.noticeId === focus.noticeId);
+    const targets = markersRef.current.filter((m) => m.noticeId === focus.noticeId && (focus.houseId == null || m.houseId === focus.houseId));
     if (targets.length === 0) return;
     el.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     overlay.current?.setMap(null);

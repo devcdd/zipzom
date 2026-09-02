@@ -10,9 +10,9 @@ export function useNoticeSelection() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   // 같은 공고를 다시 눌러도 지도가 반응하도록 타임스탬프를 갱신한다
-  const showOnMap = useCallback((noticeId: number) => {
+  const showOnMap = useCallback((noticeId: number, houseId?: number) => {
     setSelectedId(noticeId);
-    setFocus({ noticeId, at: Date.now() });
+    setFocus({ noticeId, houseId, at: Date.now() });
   }, []);
 
   // NoticeMap의 마커 생성 effect 의존성이라 매 렌더 새 함수를 넘기면 마커가 다시 그려진다
