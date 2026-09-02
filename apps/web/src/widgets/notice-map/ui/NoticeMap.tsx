@@ -41,11 +41,15 @@ export function NoticeMap({
   focus,
   onSelect,
   className = '',
+  expanded = false,
+  onToggleExpand,
 }: {
   markers: MapMarker[];
   focus?: MapFocus | null;
   onSelect?: (noticeId: number, houseId: number) => void;
   className?: string;
+  expanded?: boolean; // 데스크톱에서 지도를 전체 폭으로
+  onToggleExpand?: () => void;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<kakao.maps.Map | null>(null);
@@ -130,6 +134,13 @@ export function NoticeMap({
     };
   }, [status, markerKey]);
 
+  useEffect(() => {
+    if (status !== 'ready' || !map.current) return;
+    // 컨테이너 크기가 바뀐 뒤(전환 애니메이션 없음) 한 프레임 뒤에 다시 그린다
+    const id = requestAnimationFrame(() => map.current?.relayout());
+    return () => cancelAnimationFrame(id);
+  }, [status, expanded]);
+
   // 카드의 지도 아이콘 클릭 → 해당 공고 단지로 이동. 단지 1곳이면 줌인+말풍선, 여러 곳이면 bounds
   useEffect(() => {
     if (!focus || status !== 'ready' || !map.current) return;
@@ -168,6 +179,17 @@ export function NoticeMap({
       {status === 'loading' && <p className="absolute inset-0 grid place-items-center text-sm text-muted">지도 불러오는 중…</p>}
       {status === 'ready' && markers.length === 0 && (
         <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-muted">표시할 좌표가 있는 단지가 없어요</p>
+      )}
+      {onToggleExpand && (
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          title={expanded ? '지도 줄이기' : '지도 넓게'}
+          aria-label={expanded ? '지도 줄이기' : '지도 넓게'}
+          className="absolute right-2 top-2 z-10 hidden size-8 items-center justify-center rounded-md border border-line bg-surface text-lg leading-none text-muted shadow-sm transition-colors hover:text-ink lg:flex"
+        >
+          {expanded ? '−' : '+'}
+        </button>
       )}
     </div>
   );

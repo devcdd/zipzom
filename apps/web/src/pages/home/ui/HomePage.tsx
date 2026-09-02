@@ -18,6 +18,7 @@ export function HomePage() {
   const { profile, loading: profileLoading } = useProfile(sessionLoading ? undefined : !!me);
   const bookmarks = useBookmarks(sessionLoading ? undefined : !!me);
   const [mode, setMode] = useState<Mode | null>(null);
+  const [wide, setWide] = useState(false); // 데스크톱 지도 전체 폭
   // 프로필 확인 전엔 탭을 고정하지 않는다. 있으면 내 매칭, 없으면 전체 공고
   const effectiveMode: Mode = mode ?? (profile ? 'matches' : 'all');
   const { focus, selectedId, selectedHouseId, showOnMap, selectFromMap } = useNoticeSelection();
@@ -71,7 +72,7 @@ export function HomePage() {
                   {matches.data.notices.length === 0 ? (
                     <div className="card p-10 text-center text-sm text-muted">관심 지역에 모집 중인 공고가 없어요. 전체 공고에서 다른 지역도 살펴보세요.</div>
                   ) : (
-                    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+                    <div className={`grid items-start gap-4 ${wide ? "" : "lg:grid-cols-[minmax(0,1fr)_400px]"}`}>
                       <div className="grid gap-3">
                         {[...matches.data.notices]
                           // 지도에서 고른 공고 → 내 계층에 배정된 단지가 있는 공고 → 나머지
@@ -100,7 +101,9 @@ export function HomePage() {
                         markers={noticesToMarkers(matches.data.notices)}
                         focus={focus}
                         onSelect={selectFromMap}
-                        className="order-first h-80 lg:order-none lg:sticky lg:top-20 lg:h-[calc(100svh-7rem)]"
+                        className={wide ? "order-first h-80 lg:h-[70svh]" : "order-first h-80 lg:order-none lg:sticky lg:top-20 lg:h-[calc(100svh-7rem)]"}
+                        expanded={wide}
+                        onToggleExpand={() => setWide((v) => !v)}
                       />
                     </div>
                   )}

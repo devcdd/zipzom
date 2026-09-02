@@ -11,6 +11,7 @@ import { NoticeMap, noticesToMarkers, useNoticeSelection } from '@/widgets/notic
 /** 수집한 전체 공고 + 필터. 매칭과 무관하게 둘러보기용. */
 export function NoticeFeed({ regions }: { regions?: Region[] }) {
   const [filters, setFilters] = useState<NoticeFiltersValue>(DEFAULT_FILTERS);
+  const [wide, setWide] = useState(false); // 데스크톱 지도 전체 폭
   const { me, loading: sessionLoading } = useSession();
   const bookmarks = useBookmarks(sessionLoading ? undefined : !!me);
   const { focus, selectedId, selectedHouseId, showOnMap, selectFromMap } = useNoticeSelection();
@@ -38,7 +39,7 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
         {data && <span className="text-xs text-muted">{data.total}건</span>}
       </div>
       <PageState loading={loading} error={error} empty={data?.items.length === 0} emptyMessage="조건에 맞는 공고가 없어요.">
-        <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+        <div className={`grid items-start gap-4 ${wide ? "" : "lg:grid-cols-[minmax(0,1fr)_400px]"}`}>
           <div className="grid gap-3">
             {ordered.map((n) => (
               <NoticeCard
@@ -57,7 +58,9 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
             markers={noticesToMarkers(data?.items ?? [])}
             focus={focus}
             onSelect={selectFromMap}
-            className="order-first h-80 lg:order-none lg:sticky lg:top-20 lg:h-[calc(100svh-7rem)]"
+            className={wide ? "order-first h-80 lg:h-[70svh]" : "order-first h-80 lg:order-none lg:sticky lg:top-20 lg:h-[calc(100svh-7rem)]"}
+            expanded={wide}
+            onToggleExpand={() => setWide((v) => !v)}
           />
         </div>
       </PageState>
