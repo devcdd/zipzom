@@ -4,6 +4,7 @@ import { HomePage } from '@/pages/home';
 import { MePage } from '@/pages/me';
 import { ProfilePage } from '@/pages/profile';
 import { SessionProvider } from '@/entities/user';
+import { BottomNav } from '@/widgets/bottom-nav';
 import { Header } from '@/widgets/header';
 
 // ponytail: 해시 라우터 3개 경로. 중첩·파라미터 라우트 생기면 react-router
@@ -23,10 +24,11 @@ export function App() {
   return (
     <SessionProvider>
       <div className="flex min-h-svh flex-col">
-        <Header path={path} />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-6">
+        <Header />
+        <main className="mx-auto w-full max-w-6xl flex-1 overflow-x-hidden px-5 py-6">
           <Page key={path.startsWith('/me') ? '/me' : path} />
         </main>
+        <BottomNav path={path} />
       </div>
     </SessionProvider>
   );

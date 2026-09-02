@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { authApi } from '@/entities/user';
+import { authApi, useSession } from '@/entities/user';
 
 export function AccountSection({ nickname: initial, onSaved }: { nickname: string; onSaved: () => void }) {
+  const { reload } = useSession();
+  const logout = async () => {
+    await authApi.logout();
+    reload();
+    location.hash = '#/';
+  };
   const [nickname, setNickname] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -36,6 +42,11 @@ export function AccountSection({ nickname: initial, onSaved }: { nickname: strin
       </form>
       {saved && <p className="mt-2 text-xs text-brand">닉네임을 바꿨어요.</p>}
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
+      <div className="mt-5 border-t border-line pt-4">
+        <button type="button" onClick={logout} className="btn-ghost px-3 py-1.5 text-sm">
+          로그아웃
+        </button>
+      </div>
     </section>
   );
 }

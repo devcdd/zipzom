@@ -1,59 +1,22 @@
 import { authApi, useSession } from '@/entities/user';
 
-const NAV = [
-  { href: '#/', label: '공고', match: (p: string) => p === '/' },
-  { href: '#/profile', label: '내 조건', match: (p: string) => p.startsWith('/profile') },
-];
-
-export function Header({ path }: { path: string }) {
-  const { me, loading, reload } = useSession();
-  const nav = me?.isAdmin ? [...NAV, { href: '#/admin', label: '어드민', match: (p: string) => p.startsWith('/admin') }] : NAV;
-
-  const logout = async () => {
-    await authApi.logout();
-    reload();
-    if (path.startsWith('/admin')) location.hash = '#/';
-  };
+/** 상단은 로고 + 비로그인 시 로그인 버튼만. 화면 이동은 하단 앱바가 맡는다 */
+export function Header() {
+  const { me, loading } = useSession();
 
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-surface/90 backdrop-blur">
-      <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-6 px-5">
+      <div className="mx-auto flex h-14 w-full max-w-6xl items-center px-5">
         <a href="#/" className="flex items-center gap-2 font-semibold tracking-tight">
           <span className="inline-block size-2.5 rounded-full bg-brand" />
           집좀
         </a>
-        <nav className="flex items-center gap-1 text-sm">
-          {nav.map((n) => (
-            <a
-              key={n.href}
-              href={n.href}
-              className={`rounded-md px-3 py-1.5 transition-colors ${n.match(path) ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink'}`}
-            >
-              {n.label}
-            </a>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-2 text-sm">
-          {loading ? null : me ? (
-            <>
-              <a
-                href="#/me"
-                title={me.email}
-                className={`max-w-40 truncate rounded-md px-2 py-1 transition-colors ${path.startsWith('/me') ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink'}`}
-              >
-                {me.nickname ?? me.email}
-              </a>
-              <button type="button" onClick={logout} className="btn-ghost px-2.5 py-1 text-xs">
-                로그아웃
-              </button>
-            </>
-          ) : (
-            <a href={authApi.loginUrl} className="inline-flex items-center gap-1.5 rounded-md bg-[#FEE500] px-3 py-1.5 text-xs font-medium text-[#191919] hover:brightness-95">
-              <KakaoIcon />
-              카카오 로그인
-            </a>
-          )}
-        </div>
+        {!loading && !me && (
+          <a href={authApi.loginUrl} className="ml-auto inline-flex items-center gap-1.5 rounded-md bg-[#FEE500] px-3 py-1.5 text-xs font-medium text-[#191919] hover:brightness-95">
+            <KakaoIcon />
+            카카오 로그인
+          </a>
+        )}
       </div>
     </header>
   );
