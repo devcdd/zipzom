@@ -1,0 +1,625 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zipzom 설계 노트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Sans+KR:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f5f7f4; --surface:#ffffff; --surface-2:#eef2ee; --ink:#17201c; --muted:#5f6b66; --line:#d9e0db;
+  --accent:#1e7a5b; --accent-ink:#ffffff; --accent-soft:#dff0e7; --warn:#b45309; --warn-soft:#fdecd2; --code-bg:#eef2ee;
+  --display:"IBM Plex Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
+  --body:"Noto Sans KR",system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1412; --surface:#161c19; --surface-2:#1d2521; --ink:#e6ece8; --muted:#94a19a; --line:#27312c;
+    --accent:#4dbb90; --accent-ink:#0b1a13; --accent-soft:#173328; --warn:#f0b35c; --warn-soft:#3a2a12; --code-bg:#1d2521;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1412; --surface:#161c19; --surface-2:#1d2521; --ink:#e6ece8; --muted:#94a19a; --line:#27312c;
+  --accent:#4dbb90; --accent-ink:#0b1a13; --accent-soft:#173328; --warn:#f0b35c; --warn-soft:#3a2a12; --code-bg:#1d2521;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 var(--body);-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover,a:focus-visible{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code,pre,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--code-bg);padding:.1em .4em;border-radius:4px}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;line-height:1.55;margin:0}
+pre code{background:none;padding:0;font-size:1em}
+h1,h2,h3,h4{font-family:var(--display);font-weight:600;letter-spacing:-.01em;text-wrap:balance;margin:0}
+h1{font-size:34px;line-height:1.2}
+h2{font-size:22px;line-height:1.3;padding-top:8px}
+h3{font-size:16px;line-height:1.4}
+h4{font-size:14px;color:var(--muted);font-weight:500}
+p{margin:0}
+.layout{display:grid;grid-template-columns:220px minmax(0,880px);gap:48px;max-width:1200px;margin:0 auto;padding:40px 32px 96px}
+@media (max-width:960px){.layout{grid-template-columns:minmax(0,1fr);padding:24px 18px 72px}nav.toc{display:none}}
+nav.toc{position:sticky;top:32px;align-self:start;display:flex;flex-direction:column;gap:4px;font-size:13px}
+nav.toc .brand{font-family:var(--display);font-weight:600;font-size:15px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+nav.toc .brand i{width:10px;height:10px;border-radius:50%;background:var(--accent);display:inline-block}
+nav.toc a{color:var(--muted);padding:5px 10px;border-radius:6px;border-left:2px solid transparent}
+nav.toc a:hover{color:var(--ink);background:var(--surface-2);text-decoration:none}
+main{display:flex;flex-direction:column;gap:56px;min-width:0}
+header.hero{display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lede{font-size:17px;color:var(--muted);max-width:62ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.chip{font-family:var(--mono);font-size:12px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted)}
+.chip b{color:var(--ink);font-weight:500}
+section{display:flex;flex-direction:column;gap:18px}
+.section-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.section-head .n{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 20px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.card h3{margin-bottom:6px}
+.card p{color:var(--muted);font-size:14px}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;counter-reset:step}
+.flow .step{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;position:relative}
+.flow .step::before{counter-increment:step;content:counter(step);font-family:var(--mono);font-size:11px;color:var(--accent);display:block;margin-bottom:4px}
+.flow .step b{display:block;font-weight:500;font-family:var(--display)}
+.flow .step span{color:var(--muted);font-size:13px}
+.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--display);font-weight:500;font-size:12.5px;color:var(--muted);background:var(--surface-2);white-space:nowrap}
+tbody tr:last-child td{border-bottom:none}
+td.mono,th.mono{font-family:var(--mono);font-size:12.5px;white-space:nowrap}
+.tag{display:inline-block;font-family:var(--mono);font-size:11px;padding:1px 7px;border-radius:4px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.tag.warn{background:var(--warn-soft);color:var(--warn)}
+.tag.neutral{background:var(--surface-2);color:var(--muted)}
+details{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+details summary{cursor:pointer;padding:12px 16px;font-family:var(--display);font-weight:500;display:flex;align-items:center;gap:10px;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::before{content:"";width:6px;height:6px;border-right:1.5px solid var(--muted);border-bottom:1.5px solid var(--muted);transform:rotate(-45deg);transition:transform .15s}
+details[open] summary::before{transform:rotate(45deg)}
+details .body{padding:0 16px 16px;display:flex;flex-direction:column;gap:12px}
+details .body .table-wrap{border-radius:8px}
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:12px 16px;border-radius:0 8px 8px 0;font-size:14px;color:var(--muted)}
+.note.warn{border-color:var(--warn)}
+.note b{color:var(--ink);font-weight:500}
+ol.steps{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px;counter-reset:s}
+ol.steps li{display:grid;grid-template-columns:26px 1fr;gap:10px;align-items:start;font-size:14px}
+ol.steps li::before{counter-increment:s;content:counter(s);font-family:var(--mono);font-size:12px;color:var(--accent-ink);background:var(--accent);width:22px;height:22px;border-radius:6px;display:grid;place-items:center;margin-top:2px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+svg.diagram{width:100%;height:auto;display:block}
+svg.diagram text{font-family:var(--display);font-size:13px;fill:var(--ink)}
+svg.diagram text.sub{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+svg.diagram text.lbl{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+svg.diagram rect.box{fill:var(--surface);stroke:var(--line);rx:8}
+svg.diagram rect.box.core{stroke:var(--accent);stroke-width:1.5}
+svg.diagram rect.box.ref{stroke-dasharray:4 3}
+svg.diagram line,svg.diagram path{stroke:var(--muted);stroke-width:1.2;fill:none}
+svg.diagram circle.fk{fill:var(--accent)}
+.schema-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.entity{background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.entity header{padding:10px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:baseline;gap:8px;background:var(--surface-2)}
+.entity header h3{font-family:var(--mono);font-weight:500;font-size:13.5px}
+.entity header span{font-size:12px;color:var(--muted)}
+.entity ul{list-style:none;margin:0;padding:8px 14px 10px;display:flex;flex-direction:column;gap:3px;font-family:var(--mono);font-size:12.5px}
+.entity li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
+.entity li em{font-style:normal;color:var(--muted);font-family:var(--body);font-size:12px;text-align:right}
+.entity li.pk{color:var(--accent)}
+.entity li.fk::after{content:"FK";font-size:10px;color:var(--accent);grid-column:2;text-align:right}
+.tree{font-family:var(--mono);font-size:13px;line-height:1.6}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:14px}
+.kv dt{color:var(--muted);font-family:var(--mono);font-size:12.5px}
+.kv dd{margin:0}
+footer{color:var(--muted);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="목차">
+  <div class="brand"><i></i>zipzom</div>
+  <a href="#overview">개요</a>
+  <a href="#arch">아키텍처</a>
+  <a href="#sources">데이터 소스</a>
+  <a href="#keys">API 키 발급</a>
+  <a href="#matching">자격 매칭</a>
+  <a href="#schema">DB 스키마</a>
+  <a href="#repo">모노레포</a>
+  <a href="#next">미결 · 다음 단계</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="eyebrow">Design note · 2026-09-02 · SH PDF 추출 반영</div>
+  <h1>내 조건으로 찾는 행복주택, zipzom</h1>
+  <p class="lede">나이·혼인·소득·무주택·거주지를 한 번 등록하면 LH·SH 행복주택 모집공고 중 자격에 맞는 것만 골라 알려주고 지도에 찍어 주는 서비스. 이 문서는 데이터 소스 조사, 키 발급 절차, 매칭 규칙, Postgres 스키마, 모노레포 뼈대를 한 곳에 모은 기획 노트다.</p>
+  <div class="meta">
+    <span class="chip">React <b>19.2</b></span><span class="chip">Vite <b>8.2</b></span><span class="chip">Tailwind <b>4.3</b></span><span class="chip">TypeScript <b>7.0 web · 6.0 api</b></span><span class="chip">NestJS <b>12.0</b></span><span class="chip">Postgres <b>17</b></span><span class="chip">pnpm <b>10.33</b></span>
+  </div>
+</header>
+
+<!-- ───────────── 개요 ───────────── -->
+<section id="overview">
+  <div class="section-head"><span class="n">01</span><h2>개요</h2></div>
+  <div class="cards">
+    <div class="card"><h3>조건 등록</h3><p>생년월일, 혼인 여부·혼인일, 자녀, 가구원수·세대 월소득, 맞벌이, 무주택, 자산·자동차, 거주지·관심 지역.</p></div>
+    <div class="card"><h3>공고 수집</h3><p>마이홈포털 API를 1차 소스로 LH·SH·지방공사 공고를 매일 동기화. LH API·SH RSS로 보강.</p></div>
+    <div class="card"><h3>자격 매칭 · 알림</h3><p>행복주택 계층별 규칙(청년·신혼부부·고령자…)으로 1차 필터. 새 공고가 조건에 맞으면 알림.</p></div>
+    <div class="card"><h3>지도</h3><p>카카오맵에 공고별 단지 마커. 주소는 카카오 로컬 API로 좌표화 후 DB 캐시.</p></div>
+  </div>
+  <div class="flow">
+    <div class="step"><b>가입 · 조건 입력</b><span>프로필 1회 저장, 이후 수정</span></div>
+    <div class="step"><b>동기화 배치</b><span>공고·단지 upsert, 신규만 지오코딩</span></div>
+    <div class="step"><b>매칭 계산</b><span>프로필 × 공고 → matches</span></div>
+    <div class="step"><b>알림 · 목록</b><span>새 매칭 푸시, 마감순 목록</span></div>
+    <div class="step"><b>지도 · 상세</b><span>마커 클릭 → 원문 공고 링크</span></div>
+  </div>
+  <div class="note"><b>범위 결정.</b> 매칭은 "지원 가능성 1차 필터"다. 공고마다 우선공급·지역 거주 요건·소득 산정 세대 범위가 달라 최종 판단은 원문 공고문으로 넘긴다. 공고문 PDF는 규칙 파서 대신 LLM(gpt-5.6-luna)으로 단지 표만 뽑고, 어드민 검수를 거쳐야 반영한다 — 환각·숫자 오독은 사람이 마지막에 잡는다.</div>
+</section>
+
+<!-- ───────────── 아키텍처 ───────────── -->
+<section id="arch">
+  <div class="section-head"><span class="n">02</span><h2>아키텍처</h2></div>
+  <div class="card">
+    <svg class="diagram" viewBox="0 0 900 330" role="img" aria-label="시스템 구성도">
+      <!-- sources -->
+      <rect class="box" x="20" y="24" width="190" height="46"/><text x="34" y="44">마이홈포털 API</text><text class="sub" x="34" y="60">HWSPR02 공고 · HWSPR04 단지</text>
+      <rect class="box" x="20" y="86" width="190" height="46"/><text x="34" y="106">LH 공공데이터 API</text><text class="sub" x="34" y="122">lhLeaseNoticeInfo1 · DtlInfo1</text>
+      <rect class="box" x="20" y="148" width="190" height="46"/><text x="34" y="168">SH 공고 RSS</text><text class="sub" x="34" y="184">EUC-KR · 제목 키워드 필터</text>
+      <rect class="box" x="20" y="210" width="190" height="46"/><text x="34" y="230">카카오 로컬 API</text><text class="sub" x="34" y="246">주소 → 좌표 · REST 키</text>
+      <!-- api -->
+      <rect class="box core" x="300" y="24" width="250" height="232"/>
+      <text x="316" y="46">apps/api · NestJS 12</text>
+      <rect class="box" x="316" y="64" width="218" height="38"/><text x="328" y="88">SyncScheduler <tspan class="sub">@Cron 매일</tspan></text>
+      <rect class="box" x="316" y="110" width="218" height="38"/><text x="328" y="134">Geocoder <tspan class="sub">미좌표 단지만</tspan></text>
+      <rect class="box" x="316" y="156" width="218" height="38"/><text x="328" y="180">Matcher <tspan class="sub">profile × notice</tspan></text>
+      <rect class="box" x="316" y="202" width="218" height="38"/><text x="328" y="226">REST /api <tspan class="sub">profile · notices · matches</tspan></text>
+      <!-- db -->
+      <rect class="box" x="640" y="24" width="240" height="70"/><text x="656" y="48">Postgres 17</text><text class="sub" x="656" y="66">notices · notice_houses · complexes</text><text class="sub" x="656" y="82">user_profiles · matches · rules</text>
+      <!-- web -->
+      <rect class="box core" x="640" y="150" width="240" height="106"/><text x="656" y="174">apps/web · React 19</text><text class="sub" x="656" y="192">Vite 8 · Tailwind 4.3 · TS 7</text>
+      <rect class="box" x="656" y="204" width="208" height="38"/><text x="668" y="228">카카오맵 JS SDK <tspan class="sub">마커 · 클러스터</tspan></text>
+      <!-- lines -->
+      <line x1="210" y1="47" x2="300" y2="47"/><line x1="210" y1="109" x2="300" y2="109"/><line x1="210" y1="171" x2="300" y2="171"/><line x1="210" y1="233" x2="300" y2="233"/>
+      <line x1="550" y1="59" x2="640" y2="59"/><text class="lbl" x="566" y="52">upsert</text>
+      <path d="M550 220 H600 V190 H640"/><text class="lbl" x="560" y="212">JSON</text>
+      <text class="lbl" x="20" y="300">외부 소스 → 배치 수집 → DB. 프론트는 서버 API만 호출하고 외부 키는 카카오 JS 키 하나만 노출.</text>
+    </svg>
+  </div>
+  <div class="two">
+    <div class="card"><h3>왜 마이홈포털을 1차 소스로</h3><p>LH·SH·GH 등 전 기관 공공임대 공고를 한 API로 집계하고, 단지명·주소·PNU·세대수·최소 보증금/월임대료·모집 시작/종료일까지 내려준다. 기관별 API를 각각 붙이는 것보다 스키마가 하나로 정리된다.</p></div>
+    <div class="card"><h3>SH는 RSS가 유일한 소스</h3><p>실측 결과 마이홈 API 319행 중 SH(서울주택도시공사) 공고는 0건. SH 행복주택은 RSS(EUC-KR, 제목 필터)로만 들어오고 단지·주소가 없어 "서울 전체"로 취급한다. LH API는 마이홈이 LH를 전부 커버해 보강용으로 남겨 둔다. 모두 <code>notices(source, source_id)</code>로 같은 테이블.</p></div>
+  </div>
+</section>
+
+<!-- ───────────── 데이터 소스 ───────────── -->
+<section id="sources">
+  <div class="section-head"><span class="n">03</span><h2>데이터 소스</h2></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>소스</th><th>용도</th><th>인증</th><th>쿼터 (무료)</th><th>포맷</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td><b>마이홈포털 공공주택 모집공고</b><br><span class="mono">HWSPR02/rsdtRcritNtcList</span></td><td>공고 수집 <span class="tag">1차</span></td><td>data.go.kr 인증키</td><td>1,000/일</td><td>JSON</td><td>전 기관 집계. 주택유형·공급유형·지역·월임대료 구간·공고월 필터</td></tr>
+        <tr><td><b>마이홈포털 공공임대주택 단지정보</b><br><span class="mono">HWSPR04/rentalHouseGwList</span></td><td>단지 마스터·형별 면적/임대료</td><td>data.go.kr 인증키</td><td>1,000/일</td><td>JSON</td><td>시도·시군구 단위 페이지 조회. 주 1회 갱신 충분</td></tr>
+        <tr><td><b>LH 분양임대공고문 조회</b><br><span class="mono">B552555/lhLeaseNoticeInfo1</span></td><td>LH 공고 상태·상세 URL <span class="tag neutral">보강</span></td><td>data.go.kr 인증키</td><td>10,000/일</td><td>JSON</td><td>게시일·마감일 필수 → 최근 60일 윈도우로 조회. <code>UPP_AIS_TP_CD=06</code>(임대주택)</td></tr>
+        <tr><td><b>LH 분양임대공고별 상세정보</b><br><span class="mono">B552555/lhLeaseNoticeDtlInfo1</span></td><td>공고 상세(단지·공급·일정) <span class="tag neutral">후순위</span></td><td>data.go.kr 인증키</td><td>10,000/일</td><td>JSON</td><td>포털 문서엔 계약장소 2필드만 표기. 실제 응답 구조는 활용가이드(PDF) 확인 필요</td></tr>
+        <tr><td><b>SH 공고 및 공지 RSS</b><br><span class="mono">i-sh.co.kr …/rssNoticeWrite.do</span></td><td>SH 신규 공고 감지 <span class="tag neutral">보강</span></td><td>없음</td><td>제한 없음(예의상 1시간 1회)</td><td>RSS 2.0 · EUC-KR</td><td>카테고리 파라미터 무시됨. 제목에 <code>행복주택|입주자 모집</code> 포함만 저장</td></tr>
+        <tr><td><b>카카오 로컬 — 주소 검색</b><br><span class="mono">dapi.kakao.com/v2/local/search/address</span></td><td>지오코딩 (서버)</td><td>REST API 키 헤더</td><td>100,000/일</td><td>JSON</td><td>결과는 <code>complexes.lat/lng</code>에 캐시. 재호출은 신규 단지만</td></tr>
+        <tr><td><b>카카오맵 JavaScript SDK</b><br><span class="mono">dapi.kakao.com/v2/maps/sdk.js</span></td><td>지도 렌더 (브라우저)</td><td>JavaScript 키 + 도메인 등록</td><td>300,000/일</td><td>—</td><td>2026-07-21부터 앱에서 "카카오맵 API 활성화" 필수. 계정당 첫 앱만 무료 쿼터</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <details open>
+    <summary>마이홈포털 · 공공주택 모집공고 조회 <span class="tag">핵심</span></summary>
+    <div class="body">
+      <pre><code>GET https://apis.data.go.kr/1613000/HWSPR02/rsdtRcritNtcList
+    ?serviceKey={KEY}&brtcCode=11&signguCode=&suplyTy=&houseTy=&lfstsTyAt=
+    &bassMtRntchrgSe=&yearMtBegin=202609&yearMtEnd=202609&numOfRows=100&pageNo=1</code></pre>
+      <div class="table-wrap"><table>
+        <thead><tr><th>요청</th><th>설명</th><th>요청</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">brtcCode</td><td>광역시도 코드</td><td class="mono">signguCode</td><td>시군구 코드</td></tr>
+          <tr><td class="mono">suplyTy</td><td>공급유형</td><td class="mono">houseTy</td><td>주택유형 (행복주택 코드는 참고문서)</td></tr>
+          <tr><td class="mono">lfstsTyAt</td><td>전세형 모집 여부</td><td class="mono">bassMtRntchrgSe</td><td>월임대료 구분</td></tr>
+          <tr><td class="mono">yearMtBegin / yearMtEnd</td><td>모집공고월 YYYYMM</td><td class="mono">numOfRows / pageNo</td><td>기본 10 / 1</td></tr>
+        </tbody>
+      </table></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>응답 필드</th><th>의미</th><th>→ 저장</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">pblancId · houseSn</td><td>공고ID · 주택 일련번호 (공고 1 : 단지 N)</td><td class="mono">notices.source_id · notice_houses.house_sn</td></tr>
+          <tr><td class="mono">pblancNm · sttusNm · suplyInsttNm</td><td>공고명 · 상태 · 공급기관명(LH/SH…)</td><td class="mono">title · status · institution</td></tr>
+          <tr><td class="mono">houseTyNm · suplyTyNm</td><td>주택유형(행복주택) · 공급유형</td><td class="mono">house_type · supply_type</td></tr>
+          <tr><td class="mono">rcritPblancDe · beginDe · endDe · przwnerPresnatnDe</td><td>공고일 · 모집 시작/종료 · 당첨자 발표</td><td class="mono">posted_on · apply_begin_on · apply_end_on · winner_announce_on</td></tr>
+          <tr><td class="mono">url · pcUrl · mobileUrl · refrnc</td><td>원문 URL · 마이홈 URL · 문의처</td><td class="mono">detail_url · contact</td></tr>
+          <tr><td class="mono">hsmpNm · brtcNm · signguNm · fullAdres · pnu</td><td>단지명 · 시도 · 시군구 · 전체주소 · PNU</td><td class="mono">notice_houses.name/address/pnu (+ 지오코딩)</td></tr>
+          <tr><td class="mono">totHshldCo · sumSuplyCo</td><td>총 세대수 · 공급호수</td><td class="mono">total_households · supply_count</td></tr>
+          <tr><td class="mono">rentGtn · mtRntchrg</td><td>최소 임대보증금 · 최소 월임대료</td><td class="mono">min_deposit · min_monthly_rent</td></tr>
+          <tr><td class="mono">heatMthdNm · beforePblancId</td><td>난방 · 이전(정정 전) 공고 ID</td><td class="mono">raw</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note warn"><b>코드표는 포털 참고문서에만 있다.</b> <code>brtcCode</code>·<code>houseTy</code> 등 코드값은 data.go.kr 상세 페이지의 "붙임1. 요청 파라미터 코드" 파일을 내려받아 <code>regions</code> 테이블에 시드해야 한다. 마이홈 지역코드는 법정동코드와 다르다(샘플: 43 / 750).</div>
+    </div>
+  </details>
+
+  <details>
+    <summary>마이홈포털 · 공공임대주택 단지정보 조회</summary>
+    <div class="body">
+      <pre><code>GET https://apis.data.go.kr/1613000/HWSPR04/rentalHouseGwList
+    ?serviceKey={KEY}&brtcCode=11&signguCode=&numOfRows=100&pageNo=1</code></pre>
+      <div class="table-wrap"><table>
+        <thead><tr><th>응답 필드</th><th>의미</th><th>→ 저장</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">hsmpSn · insttNm · hsmpNm</td><td>단지 식별자 · 기관 · 단지명</td><td class="mono">complexes.hsmp_sn / institution / name</td></tr>
+          <tr><td class="mono">brtcCode/Nm · signguCode/Nm · rnAdres · pnu</td><td>지역 · 도로명주소 · PNU</td><td class="mono">sido_code · sigungu_code · road_address · pnu</td></tr>
+          <tr><td class="mono">competDe · hshldCo · houseTyNm · suplyTyNm</td><td>준공일 · 세대수 · 주택유형 · 공급유형</td><td class="mono">completed_on · households · house_type · supply_type</td></tr>
+          <tr><td class="mono">heatMthdDetailNm · buldStleNm · elvtrInstlAtNm · parkngCo</td><td>난방 · 건물형태 · 승강기 · 주차</td><td class="mono">heating · building_style · has_elevator · parking_count</td></tr>
+          <tr><td class="mono">styleNm · suplyPrvuseAr · suplyCmnuseAr</td><td>형(타입) · 전용/공용 면적</td><td class="mono">complex_unit_types</td></tr>
+          <tr><td class="mono">bassRentGtn · bassMtRntchrg · bassCnvrsGtnLmt</td><td>기본 보증금 · 월임대료 · 전환보증금 한도</td><td class="mono">complex_unit_types</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>LH · 분양임대공고문 조회 / 공고별 상세정보</summary>
+    <div class="body">
+      <pre><code>GET https://apis.data.go.kr/B552555/lhLeaseNoticeInfo1/lhLeaseNoticeInfo1
+    ?ServiceKey={KEY}&PG_SZ=100&PAGE=1&UPP_AIS_TP_CD=06&PAN_SS=공고중
+    &PAN_NT_ST_DT=2026.07.01&CLSG_DT=2026.10.31          # 게시일·마감일 필수, YYYY.MM.DD
+
+GET https://apis.data.go.kr/B552555/lhLeaseNoticeDtlInfo1/getLeaseNoticeDtlInfo1
+    ?serviceKey={KEY}&SPL_INF_TP_CD=&CCR_CNNT_SYS_DS_CD=&PAN_ID=&UPP_AIS_TP_CD=&AIS_TP_CD=</code></pre>
+      <div class="table-wrap"><table>
+        <thead><tr><th>구분</th><th>필드</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>요청 코드</td><td class="mono">UPP_AIS_TP_CD</td><td>01 토지 · 05 분양주택 · <b>06 임대주택</b> · 13 주거복지 · 22 상가 · 39 신혼희망타운</td></tr>
+          <tr><td>요청 코드</td><td class="mono">PAN_SS</td><td>공고중 · 접수중 · 접수마감 · 상담요청 · 정정공고중</td></tr>
+          <tr><td>응답(문서)</td><td class="mono">RNUM · UPP_AIS_TP_NM · AIS_TP_CD_NM · PAN_NM · CNP_CD_NM · PAN_SS · ALL_CNT · DTL_URL</td><td><code>AIS_TP_CD_NM = 행복주택</code>로 필터</td></tr>
+          <tr><td>응답(실제)</td><td class="mono">PAN_ID · SPL_INF_TP_CD · CCR_CNNT_SYS_DS_CD · UPP_AIS_TP_CD · AIS_TP_CD · PAN_NT_ST_DT · CLSG_DT</td><td>포털 표에는 없지만 상세 API 입력값이라 실응답에 포함. 첫 호출 후 <code>raw</code> 확인</td></tr>
+          <tr><td>상세 응답</td><td class="mono">CTRT_PLC_ADR · CTRT_PLC_DTL_ADR (+ 단지/공급/일정 데이터셋)</td><td>포털 문서 미기재. 활용가이드 PDF에서 확정. 마이홈이 커버하므로 후순위</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </details>
+
+  <details>
+    <summary>SH · 공고 및 공지 RSS</summary>
+    <div class="body">
+      <pre><code>GET https://www.i-sh.co.kr/main/lay2/program/S1T294C295/www/rss/rssNoticeWrite.do
+Content: RSS 2.0, &lt;?xml encoding="EUC-KR"?&gt;   # TextDecoder('euc-kr')로 디코드
+
+&lt;item&gt;
+  &lt;title&gt;제51차 장기전세주택 입주자 모집공고(2026.08.31.공고)&lt;/title&gt;
+  &lt;link&gt;http://www.i-sh.co.kr/main/lay2/program/S1T294C295/www/brd/m_241/view.do?seq=309596&lt;/link&gt;
+  &lt;content:encoded&gt;…HTML…&lt;/content:encoded&gt;
+  &lt;pubDate&gt;Tue, 01 Sep 2026 02:11:03 GMT&lt;/pubDate&gt;
+&lt;/item&gt;</code></pre>
+      <p style="font-size:14px;color:var(--muted)">2026-09-01 실측: 모든 카테고리(분양·임대·보상·용역…)가 한 피드에 섞여 나오고 <code>multi_itm_seqs</code> 파라미터는 무시된다. <code>seq</code>를 <code>source_id</code>로, 제목 정규식 <code>/행복주택|입주자\s*모집/</code> 통과분만 저장. 마이홈 API에 동일 공고가 "서울주택도시공사"로 올라오면 <code>notices</code>에 두 행이 생기는데, 제목 유사도로 병합하는 대신 UI에서 기관+공고일로 묶어 보여준다.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>카카오 · 로컬 API(지오코딩) / 지도 SDK</summary>
+    <div class="body">
+      <pre><code># 서버: 주소 → 좌표
+GET https://dapi.kakao.com/v2/local/search/address.json?query=서울특별시 강남구 …&analyze_type=similar&size=1
+Authorization: KakaoAK {KAKAO_REST_API_KEY}
+→ documents[0].x (경도) · y (위도) · address.b_code (법정동 10자리 → 앞 5자리 = sigungu_code)
+
+# 브라우저: 지도
+&lt;script src="//dapi.kakao.com/v2/maps/sdk.js?appkey={VITE_KAKAO_JS_KEY}&libraries=clusterer&autoload=false"&gt;&lt;/script&gt;</code></pre>
+      <p style="font-size:14px;color:var(--muted)">주소 검색이 빈 결과를 주는 신규 택지(예: "행복도시 3-1M5 블록")가 있다. 실패 시 키워드 검색(<code>/v2/local/search/keyword.json</code>)으로 단지명 재시도, 그래도 없으면 <code>regions.lat/lng</code>(시군구 중심)로 대체하고 <code>geocoded_at</code>은 비워 둔다.</p>
+    </div>
+  </details>
+</section>
+
+<!-- ───────────── 키 발급 ───────────── -->
+<section id="keys">
+  <div class="section-head"><span class="n">04</span><h2>API 키 발급</h2></div>
+  <div class="two">
+    <div class="card">
+      <h3>공공데이터포털 (data.go.kr) — 인증키 1개</h3>
+      <ol class="steps">
+        <li>회원가입 후 로그인.</li>
+        <li>아래 4개 API 페이지에서 각각 <b>활용신청</b>. 개발계정은 자동승인, 활성화까지 1~2시간.<br>
+          <a href="https://www.data.go.kr/data/15108420/openapi.do">마이홈 공공주택 모집공고 (15108420)</a> ·
+          <a href="https://www.data.go.kr/data/15110581/openapi.do">마이홈 공공임대 단지정보 (15110581)</a> ·
+          <a href="https://www.data.go.kr/data/15058530/openapi.do">LH 분양임대공고문 (15058530)</a> ·
+          <a href="https://www.data.go.kr/data/15057999/openapi.do">LH 공고별 상세 (15057999)</a></li>
+        <li><b>마이페이지 › 오픈API › 인증키</b>에서 키 복사. 계정당 인증키 1개가 승인된 모든 API에 공통.</li>
+        <li>Encoding/Decoding 두 키가 보이면 <b>Decoding(원문)</b> 키를 <code>DATA_GO_KR_SERVICE_KEY</code>에 넣고 요청 시 URL 인코딩.</li>
+        <li>각 페이지 "참고문서"의 요청 파라미터 코드표 다운로드 → <code>regions</code> 시드.</li>
+        <li>운영 전환 시 활용사례 등록 후 운영계정 신청(트래픽 증설).</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>카카오 디벨로퍼스 — JavaScript 키 + REST API 키</h3>
+      <ol class="steps">
+        <li><a href="https://developers.kakao.com">developers.kakao.com</a> 카카오계정 로그인 › 내 애플리케이션 › <b>애플리케이션 추가</b>.</li>
+        <li><b>앱 설정 › 플랫폼 › Web</b>에 <code>http://localhost:5173</code> 및 배포 도메인 등록.</li>
+        <li><b>제품 설정 › 카카오맵 › 활성화</b>. 2026-07-21 정책부터 필수. 계정당 첫 번째 활성화 앱만 무료 쿼터, 두 번째부턴 비즈월렛 연결.</li>
+        <li><b>앱 설정 › 앱 키</b>: JavaScript 키 → <code>apps/web/.env</code>의 <code>VITE_KAKAO_JS_KEY</code>(브라우저 노출, 도메인 제한이 보호수단). REST API 키 → 루트 <code>.env</code>의 <code>KAKAO_REST_API_KEY</code>(서버 전용).</li>
+        <li>지도 SDK에 REST 키를 쓰면 실패한다. 키 종류 혼동 주의.</li>
+      </ol>
+    </div>
+  </div>
+  <h3>.env.example</h3>
+  <pre><code>PORT=3000
+WEB_ORIGIN=http://localhost:5173
+DATABASE_URL=postgres://zipzom:zipzom@localhost:5433/zipzom   # 5432는 로컬 다른 Postgres와 충돌 잦아 5433
+
+DATA_GO_KR_SERVICE_KEY=        # 마이홈·LH 4개 API 공통
+KAKAO_REST_API_KEY=            # 서버 지오코딩
+SH_RSS_URL=https://www.i-sh.co.kr/main/lay2/program/S1T294C295/www/rss/rssNoticeWrite.do
+
+# OpenAI (공고문 PDF 단지 표 추출). platform.openai.com › API keys, Billing 선불 충전
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.6-luna
+
+# 프론트도 루트 .env 사용 (vite envDir, VITE_ 접두어만 브라우저 노출)
+VITE_API_BASE=/api
+VITE_KAKAO_JS_KEY=        # 카카오 JavaScript 키 (REST 키 아님)</code></pre>
+  <p style="font-size:14px;color:var(--muted)">루트 <code>.env</code> 하나를 api가 <code>process.loadEnvFile()</code>(Node 21+ 표준)로 읽는다. 별도 config 라이브러리 없음.</p>
+</section>
+
+<!-- ───────────── 자격 매칭 ───────────── -->
+<section id="matching">
+  <div class="section-head"><span class="n">05</span><h2>자격 매칭 규칙</h2></div>
+  <p style="color:var(--muted);max-width:70ch">행복주택 입주자격(마이홈포털·LH청약플러스, 2026-09 확인)을 <code>eligibility_rules</code> 6행으로 코드화. 프로필이 하나 이상의 계층을 충족하고, 공고가 <code>행복주택</code>·모집 중·관심 지역이면 매칭.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>계층 (code)</th><th>나이 · 혼인</th><th>소득 (도시근로자 월평균 대비)</th><th>총자산</th><th>자동차</th><th>최대 거주</th></tr></thead>
+    <tbody>
+      <tr><td>대학생·취업준비생 <span class="mono">STUDENT</span></td><td>혼인 중 아님</td><td>본인+부모 100%</td><td>1억 800만</td><td>소유 불가</td><td>10년</td></tr>
+      <tr><td>청년·사회초년생 <span class="mono">YOUTH</span></td><td>만 19~39세 · 혼인 중 아님</td><td>세대 100% <span class="tag neutral">1인 +20%p · 2인 +10%p</span></td><td>2억 5,100만</td><td>4,542만</td><td>10년</td></tr>
+      <tr><td>신혼부부·예비신혼부부 <span class="mono">NEWLYWED</span></td><td>혼인 7년 이내 또는 만 6세 이하 자녀</td><td>세대 100% · 맞벌이 120%</td><td>3억 4,500만</td><td>4,542만</td><td>10년 (자녀 있으면 14년)</td></tr>
+      <tr><td>한부모가족 <span class="mono">SINGLE_PARENT</span></td><td>만 6세 이하 자녀</td><td>세대 100%</td><td>3억 4,500만</td><td>4,542만</td><td>10년 / 14년</td></tr>
+      <tr><td>고령자 <span class="mono">SENIOR</span></td><td>만 65세 이상</td><td>세대 100%</td><td>3억 4,500만</td><td>4,542만</td><td>20년</td></tr>
+      <tr><td>주거급여수급자 <span class="mono">HOUSING_BENEFIT</span></td><td>—</td><td>미적용</td><td>3억 4,500만</td><td>4,542만</td><td>20년</td></tr>
+    </tbody>
+  </table></div>
+  <div class="two">
+    <div class="card">
+      <h3>소득기준 100% (2026년 적용, 원/월)</h3>
+      <div class="table-wrap" style="border:none"><table>
+        <thead><tr><th>가구원수</th><th>100%</th><th>120%</th></tr></thead>
+        <tbody>
+          <tr><td>1인</td><td class="mono">3,813,363</td><td class="mono">4,576,036</td></tr>
+          <tr><td>2인</td><td class="mono">5,866,270</td><td class="mono">7,039,524</td></tr>
+          <tr><td>3인</td><td class="mono">8,168,429</td><td class="mono">9,802,115</td></tr>
+          <tr><td>4인</td><td class="mono">8,802,202</td><td class="mono">10,562,642</td></tr>
+          <tr><td>5인</td><td class="mono">9,326,985</td><td class="mono">11,192,382</td></tr>
+          <tr><td>6인</td><td class="mono">9,906,263</td><td class="mono">11,887,516</td></tr>
+        </tbody>
+      </table></div>
+      <p style="margin-top:8px">통계청 2025년 수치 미발표로 LH·SH 2026 공고가 2025년 적용 금액을 유지 중. 연 1회 <code>income_standards</code>에 행 추가.</p>
+    </div>
+    <div class="card">
+      <h3>판정 의사코드</h3>
+      <pre><code>age  = 만나이(birth_date, today)
+base = income_standards[year][min(household_size, 6)]
+pct  = dual_income && rule.dual_income_pct ? rule.dual_income_pct : rule.income_pct
+pct += household_size == 1 ? rule.bonus_pct_1p
+     : household_size == 2 ? rule.bonus_pct_2p : 0
+
+eligible(rule) =
+     is_homeless
+  && (rule.min_age  == null || age >= rule.min_age)
+  && (rule.max_age  == null || age <= rule.max_age)
+  && (!rule.requires_unmarried || marital_status == 'SINGLE')
+  && (rule.marriage_within_years == null
+        || married_at >= today - 7y
+        || youngest_child_age <= rule.child_max_age)
+  && (rule.income_pct  == null || household_monthly_income <= base * pct / 100)
+  && (rule.asset_limit == null || total_assets <= rule.asset_limit)
+  && (rule.car_limit   == null || car_value    <= rule.car_limit)
+
+match(profile, notice) =
+     notice.house_type == '행복주택'
+  && notice.status in ('공고중','접수중')
+  && ∃ house ∈ notice_houses : house.sigungu_code ∈ preferred (or sido)
+  && ∃ rule : eligible(rule)   → matched_rules[]</code></pre>
+    </div>
+  </div>
+  <div class="note"><b>의도적 단순화.</b> 대학생 계층의 "본인+부모 소득", 신혼부부 "무자녀 10년/유자녀 14년", 산업단지근로자 계층, 공고별 지역 우선공급은 규칙에 넣지 않았다. 매칭 결과 카드에 "원문 공고문 자격 확인" 링크를 항상 붙인다.</div>
+</section>
+
+<!-- ───────────── DB 스키마 ───────────── -->
+<section id="schema">
+  <div class="section-head"><span class="n">06</span><h2>DB 스키마 · Postgres 17</h2></div>
+  <p style="color:var(--muted);max-width:70ch">전체 DDL은 <code>db/schema.sql</code>. docker compose 첫 기동 시 <code>/docker-entrypoint-initdb.d</code>로 자동 적용되고 시드(소득기준·자격규칙)까지 들어간다. 좌표는 PostGIS 없이 double 두 컬럼 — bbox 조회로 충분, 거리순 정렬이 필요해지면 그때 PostGIS.</p>
+  <div class="card">
+    <svg class="diagram" viewBox="0 0 1160 440" role="img" aria-label="테이블 관계도">
+      <rect class="box core" x="30" y="40" width="180" height="56"/><text x="44" y="62">users</text><text class="sub" x="44" y="80">id uuid · email</text>
+      <rect class="box core" x="260" y="40" width="180" height="56"/><text x="274" y="62">user_profiles</text><text class="sub" x="274" y="80">주거조건 1:1</text>
+      <rect class="box" x="30" y="200" width="180" height="56"/><text x="44" y="222">user_notice_matches</text><text class="sub" x="44" y="240">user × notice · rules[]</text>
+      <rect class="box core" x="260" y="200" width="180" height="56"/><text x="274" y="222">notices</text><text class="sub" x="274" y="238">(source, source_id) unique</text>
+      <rect class="box core" x="490" y="200" width="180" height="56"/><text x="504" y="222">notice_houses</text><text class="sub" x="504" y="238">공고 1 : 단지 N · 지도 마커</text>
+      <rect class="box core" x="720" y="200" width="180" height="56"/><text x="734" y="222">complexes</text><text class="sub" x="734" y="238">단지 마스터 · lat/lng</text>
+      <rect class="box" x="950" y="200" width="180" height="56"/><text x="964" y="222">complex_unit_types</text><text class="sub" x="964" y="238">형별 면적·임대료</text>
+      <rect class="box ref" x="260" y="360" width="180" height="56"/><text x="274" y="382">regions</text><text class="sub" x="274" y="398">시군구 · API 코드 매핑</text>
+      <rect class="box ref" x="490" y="360" width="180" height="56"/><text x="504" y="382">income_standards</text><text class="sub" x="504" y="398">연도 × 가구원수</text>
+      <rect class="box ref" x="720" y="360" width="180" height="56"/><text x="734" y="382">eligibility_rules</text><text class="sub" x="734" y="398">계층별 자격 6행</text>
+      <rect class="box ref" x="950" y="360" width="180" height="56"/><text x="964" y="382">sync_runs</text><text class="sub" x="964" y="398">배치 이력</text>
+      <line x1="210" y1="68" x2="260" y2="68"/><circle class="fk" cx="260" cy="68" r="3"/>
+      <line x1="120" y1="96" x2="120" y2="200"/><circle class="fk" cx="120" cy="200" r="3"/>
+      <line x1="210" y1="228" x2="260" y2="228"/><circle class="fk" cx="210" cy="228" r="3"/>
+      <line x1="440" y1="228" x2="490" y2="228"/><circle class="fk" cx="490" cy="228" r="3"/>
+      <line x1="670" y1="228" x2="720" y2="228"/><circle class="fk" cx="670" cy="228" r="3"/>
+      <line x1="900" y1="228" x2="950" y2="228"/><circle class="fk" cx="950" cy="228" r="3"/>
+      <text class="lbl" x="30" y="330">● = FK 쪽 · 점선 = 참조·시드 테이블(FK 없음, 코드로 조인)</text>
+    </svg>
+  </div>
+
+  <div class="schema-grid">
+    <div class="entity"><header><h3>users</h3><span>계정</span></header><ul>
+      <li class="pk">id uuid<em>PK</em></li><li>email text<em>unique</em></li><li>created_at timestamptz</li></ul></div>
+    <div class="entity"><header><h3>user_profiles</h3><span>주거조건</span></header><ul>
+      <li class="pk fk">user_id uuid</li>
+      <li>birth_date date<em>만 나이 계산</em></li>
+      <li>marital_status enum<em>SINGLE·MARRIED·ENGAGED</em></li>
+      <li>married_at date<em>7년 이내 판정</em></li>
+      <li>children_count smallint</li>
+      <li>youngest_child_birth_date date<em>만 6세 이하</em></li>
+      <li>household_size smallint</li>
+      <li>household_monthly_income bigint<em>원</em></li>
+      <li>dual_income boolean<em>→ 120%</em></li>
+      <li>is_homeless boolean</li>
+      <li>total_assets · car_value bigint</li>
+      <li>is_student · is_housing_benefit_recipient</li>
+      <li>sido_code char(2) · sigungu_code char(5)<em>거주지</em></li>
+      <li>preferred_sigungu_codes char(5)[]<em>관심 지역</em></li></ul></div>
+    <div class="entity"><header><h3>notices</h3><span>모집공고 (소스 정규화)</span></header><ul>
+      <li class="pk">id bigserial</li>
+      <li>source enum<em>MYHOME·LH·SH</em></li>
+      <li>source_id text<em>pblancId / PAN_ID / seq</em></li>
+      <li>title · institution · house_type · supply_type · status</li>
+      <li>posted_on · apply_begin_on · apply_end_on · winner_announce_on date</li>
+      <li>detail_url · contact text</li>
+      <li>raw jsonb<em>원본 전체</em></li>
+      <li>first_seen_at · updated_at</li>
+      <li>unique(source, source_id)</li></ul></div>
+    <div class="entity"><header><h3>notice_houses</h3><span>공고 내 단지 · 마커</span></header><ul>
+      <li class="pk">id bigserial</li>
+      <li class="fk">notice_id bigint</li>
+      <li>house_sn text<em>마이홈 houseSn</em></li>
+      <li class="fk">complex_id bigint<em>nullable</em></li>
+      <li>name · address · pnu</li>
+      <li>sido_code · sigungu_code</li>
+      <li>total_households · supply_count int</li>
+      <li>min_deposit · min_monthly_rent bigint</li>
+      <li>lat · lng double<em>idx</em></li>
+      <li>unique(notice_id, house_sn)</li></ul></div>
+    <div class="entity"><header><h3>complexes</h3><span>단지 마스터</span></header><ul>
+      <li class="pk">id bigserial</li>
+      <li>hsmp_sn text<em>unique · 마이홈</em></li>
+      <li>institution · name</li>
+      <li>sido_code · sigungu_code · road_address · pnu</li>
+      <li>completed_on date · households int</li>
+      <li>house_type · supply_type · heating · building_style</li>
+      <li>has_elevator boolean · parking_count int</li>
+      <li>lat · lng double · geocoded_at</li>
+      <li>raw jsonb · updated_at</li></ul></div>
+    <div class="entity"><header><h3>complex_unit_types</h3><span>형별 조건</span></header><ul>
+      <li class="pk">id bigserial</li>
+      <li class="fk">complex_id bigint</li>
+      <li>style_name text<em>26A</em></li>
+      <li>exclusive_area · common_area numeric(8,2)<em>㎡</em></li>
+      <li>deposit · monthly_rent · convertible_deposit_limit bigint</li>
+      <li>unique(complex_id, style_name)</li></ul></div>
+    <div class="entity"><header><h3>user_notice_matches</h3><span>매칭 결과</span></header><ul>
+      <li class="pk fk">user_id uuid</li>
+      <li class="pk fk">notice_id bigint</li>
+      <li>matched_rules text[]<em>충족 계층</em></li>
+      <li>reasons jsonb<em>판정 근거</em></li>
+      <li>matched_at · notified_at</li></ul></div>
+    <div class="entity"><header><h3>eligibility_rules</h3><span>시드 6행</span></header><ul>
+      <li class="pk">code text</li>
+      <li>label · min_age · max_age</li>
+      <li>requires_unmarried · marriage_within_years · child_max_age</li>
+      <li>income_pct · dual_income_pct · bonus_pct_1p · bonus_pct_2p</li>
+      <li>asset_limit · car_limit · max_residence_years</li>
+      <li>effective_from date</li></ul></div>
+    <div class="entity"><header><h3>income_standards</h3><span>시드 2026</span></header><ul>
+      <li class="pk">apply_year smallint</li>
+      <li class="pk">household_size smallint<em>6 = 6인 이상</em></li>
+      <li>amount bigint<em>100% 원</em></li></ul></div>
+    <div class="entity"><header><h3>regions</h3><span>코드 매핑 (시드 예정)</span></header><ul>
+      <li class="pk">code char(5)<em>법정동 시군구</em></li>
+      <li>sido_code · name</li>
+      <li>myhome_brtc_code · myhome_signgu_code · lh_cnp_code</li>
+      <li>lat · lng<em>지도 초기 중심</em></li></ul></div>
+    <div class="entity"><header><h3>sync_runs</h3><span>배치 이력</span></header><ul>
+      <li class="pk">id bigserial</li>
+      <li>source enum · started_at · finished_at</li>
+      <li>fetched · upserted int · error text</li></ul></div>
+  </div>
+  <div class="note"><b>왜 notices / notice_houses 두 단계인가.</b> 마이홈 API는 (공고 × 단지) 행을 내려준다. 공고 하나에 단지 여러 곳이 묶이는 게 보통이라 공고 메타는 한 번만 저장하고 지도 마커는 단지 단위로 찍는다. <code>complex_id</code>는 PNU·단지명으로 후속 매칭하되 실패해도 null로 둔다 — 마커는 <code>notice_houses</code> 자체 좌표로 그린다.</div>
+</section>
+
+<!-- ───────────── 모노레포 ───────────── -->
+<section id="repo">
+  <div class="section-head"><span class="n">07</span><h2>모노레포 뼈대</h2></div>
+  <div class="two">
+    <div class="card">
+      <pre class="tree"><code>zipzom/
+├─ apps/
+│  ├─ api/                NestJS 12 · TS 6 · pg(raw SQL) · zod · Vitest
+│  │  └─ src/
+│  │     ├─ main.ts       루트 .env 로드(process.loadEnvFile) · /api · CORS
+│  │     ├─ app.module.ts 단일 모듈
+│  │     ├─ db.ts         pg Pool · bigint→Number
+│  │     ├─ validate.ts   zod → 400
+│  │     ├─ sync/         myhome.client · sh-rss.client(RSS·첨부) · geocoder · house-extractor(LLM) · extraction.service · sync.service
+│  │     ├─ notices/      notices.service(목록 SQL·phase 계산) · notices.controller · regions.controller
+│  │     ├─ profiles/     profiles.service(zod 스키마·CRUD) · controller
+│  │     ├─ matching/     matcher.ts(순수 판정) · matcher.spec.ts · matches.controller
+│  │     └─ admin/        admin.controller(테이블 조회 · 동기화 · 추출 승인/반려/재시도)
+│  └─ web/                React 19 · Vite 8 · Tailwind 4.3 · TS 7 · <b>FSD</b>
+│     └─ src/
+│        ├─ main.tsx
+│        ├─ app/          App(해시 라우터) · styles/index.css(토큰)
+│        ├─ pages/        home · profile · admin
+│        ├─ widgets/      header · notice-feed · notice-map · eligibility-summary · admin-browser
+│        ├─ features/     notice-filters · profile-form · run-sync · admin-tables · extraction-review
+│        ├─ entities/     notice · profile · region · match · user
+│        └─ shared/       api(request) · lib(format·useAsync) · ui(Tag·PageState) · config
+├─ db/schema.sql          DDL + 시드 (compose initdb 마운트)
+├─ docker-compose.yml     postgres:17-alpine · 호스트 5433
+├─ .env.example · .env    키는 .env에만
+├─ package.json · pnpm-workspace.yaml
+└─ PLAN.html              이 문서</code></pre>
+    </div>
+    <div class="card">
+      <h3>실행</h3>
+      <pre><code>cp .env.example .env            # 키 채우기 (DATA_GO_KR_SERVICE_KEY, KAKAO_REST_API_KEY)
+pnpm install
+pnpm db:up                      # postgres(호스트 5433) + schema.sql 자동 적용
+pnpm dev:api                    # http://localhost:3000/api — 기동 시 12시간 넘게 동기화 없었으면 즉시 수집
+pnpm dev:web                    # http://localhost:5173  (#/ 공고 · #/profile 조건 · #/admin DB)</code></pre>
+      <h3 style="margin-top:14px">버전 (2026-09-01 npm latest)</h3>
+      <dl class="kv">
+        <dt>react / react-dom</dt><dd>19.2.8</dd>
+        <dt>vite</dt><dd>8.2.2 (rolldown)</dd>
+        <dt>tailwindcss · @tailwindcss/vite</dt><dd>4.3.3</dd>
+        <dt>typescript</dt><dd>web 7.0.2 — Go 네이티브 컴파일러, <code>tsc -b</code> 정상 빌드 확인<br>api 6.0.3 — Nest CLI 12가 컴파일러 API를 요구하는데 TS 7.0은 <code>tsc</code> 실행파일만 제공(API는 7.1 복귀 예정). <code>nest build</code>가 7.0.2를 거부해 api만 6으로 고정</dd>
+        <dt>@nestjs/core · cli</dt><dd>12.0.1 · 12.0.0 — ESM 기본, Vitest·oxlint 기본 툴체인</dd>
+        <dt>postgres</dt><dd>17-alpine</dd>
+      </dl>
+      <p style="margin-top:12px;font-size:14px;color:var(--muted)">패키지 추가는 필요 시점에: DB 클라이언트(<code>pg</code> 또는 Drizzle), <code>@nestjs/schedule</code>, 지도 래퍼. 공유 타입 패키지(<code>packages/shared</code>)는 프론트가 서버 타입을 실제로 import할 때 만든다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ───────────── 다음 단계 ───────────── -->
+<section id="next">
+  <div class="section-head"><span class="n">08</span><h2>구현 상태 · 다음 단계</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>항목</th><th>상태</th><th>메모</th></tr></thead>
+    <tbody>
+      <tr><td>마이홈 공고 수집 · SH RSS 수집 · 일 1회 스케줄 · 수동 트리거</td><td><span class="tag">완료</span></td><td>2026-09-01 첫 수집: 마이홈 233행 → 공고 92건(행복주택 29) · SH 1건 · 지역 55개</td></tr>
+      <tr><td>자격 매칭 (6계층 규칙 · 소득기준 · 관심 지역)</td><td><span class="tag">완료</span></td><td><code>GET /api/matches/:userId</code>. 순수 함수 <code>matcher.ts</code> + Vitest 5케이스</td></tr>
+      <tr><td>프론트: 공고 목록·필터 / 조건 등록 / 내 매칭 / 어드민 DB 브라우저</td><td><span class="tag">완료</span></td><td>FSD 레이어. 로그인 없음 — userId를 localStorage에 보관</td></tr>
+      <tr><td>지도 (카카오맵)</td><td><span class="tag">완료</span></td><td>카카오맵 활성화 후 지오코딩 127/127 성공. 홈·전체공고에 마커 지도(클러스터·말풍선·카드 스크롤 연동). JS 키는 루트 <code>.env</code>의 <code>VITE_KAKAO_JS_KEY</code></td></tr>
+      <tr><td>SH 공고 상세</td><td><span class="tag">완료</span></td><td>RSS 본문 파싱으로 접수기간·당첨자발표일·공급호수 (<code>parseShNotice</code>). 단지 표는 첨부 공고문 PDF를 <code>innoFD.do</code>로 직접 받아(인증 불필요) gpt-5.6-luna에 PDF째 넣고 json_schema strict로 추출 → <code>notice_extractions</code>(PENDING) → 어드민 "추출 검수" 탭에서 셀 수정 후 승인 시 <code>notice_houses</code> 교체·지오코딩·시군구 채움. 2026-09-02 실측: 62개 단지, 공급호수 합 1,484(RSS와 일치), 좌표 62/62, 건당 약 60원(입력 19만 토큰·44초)</td></tr>
+      <tr><td>단지별 모집계층 매핑</td><td><span class="tag neutral">보류</span></td><td>마이홈 API엔 계층 필드 없음(제목에만 간혹). SH PDF는 추출 가능하나 월 1~2건뿐이라 반쪽 기능. 운영해 보고 필요하면 LH 공고문 PDF 다운로드 경로 확인 → 같은 LLM 파이프라인에 태워 <code>notice_houses.eligible_groups</code>. 값싼 선행: 제목 정규식(고령자·청년 전용)으로 <code>notices.target_groups</code></td></tr>
+      <tr><td>마이홈 단지정보(HWSPR04) → <code>complexes</code></td><td><span class="tag neutral">대기</span></td><td>필수 파라미터(지역코드) 있어 코드표 필요. 공고 행에 단지명·주소·세대수가 이미 있어 1차 불필요</td></tr>
+      <tr><td>LH 공고 API 보강</td><td><span class="tag neutral">대기</span></td><td>마이홈이 LH 공고를 모두 커버(293/319행). 상태 정밀도 필요 시 도입</td></tr>
+      <tr><td>알림 채널 · 인증</td><td><span class="tag neutral">결정 필요</span></td><td>현재 "NEW" 배지(매칭 3일 이내)로 대체. 이메일/웹푸시 + 로그인은 다음 단계</td></tr>
+      <tr><td>api TypeScript 7 전환</td><td><span class="tag neutral">대기</span></td><td>Nest CLI가 TS 컴파일러 API 필요. TS 7.1 출시 후 <code>apps/api</code> 의존성만 올리면 됨</td></tr>
+      <tr><td>소득기준 갱신</td><td><span class="tag neutral">연 1회</span></td><td>통계청 발표(3~4월) 후 <code>income_standards</code> 행 추가</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<footer>출처: data.go.kr 15108420 · 15110581 · 15058530 · 15057999 상세 페이지 및 Swagger, myhome.go.kr 행복주택 입주자격 안내, apply.lh.or.kr 임대가이드, i-sh.co.kr 2026 소득기준·RSS, developers.kakao.com 로컬 API·쿼터 문서. 모두 2026-09-01 확인.</footer>
+</main>
+</div>
+</body>
+</html>
