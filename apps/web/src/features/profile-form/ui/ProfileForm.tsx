@@ -39,18 +39,23 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 export function ProfileForm({
   initial,
+  initialLocalOnly = false,
+  canLocalOnly = false,
   regions,
   submitting,
   error,
   onSubmit,
 }: {
   initial: Profile;
+  initialLocalOnly?: boolean;
+  canLocalOnly?: boolean; // 로그인 상태에서만 "서버에 저장하지 않을래요" 노출
   regions: Region[];
   submitting: boolean;
   error: string | null;
-  onSubmit: (p: Profile) => void;
+  onSubmit: (p: Profile, localOnly: boolean) => void;
 }) {
   const [p, setP] = useState<Profile>(initial);
+  const [localOnly, setLocalOnly] = useState(initialLocalOnly);
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((prev) => ({ ...prev, [k]: v }));
   const sidos = mergeSidos(regions);
   const groups = groupBySido(regions, sidos);
@@ -85,13 +90,16 @@ export function ProfileForm({
     // required는 빈 칸만 잡는다. 2월 31일처럼 존재하지 않는 날짜는 DateParts가 ''로 넘기므로 여기서 거른다
     if (!p.birthDate) return setLocalError('생년월일을 올바르게 입력해 주세요');
     setLocalError(null);
-    onSubmit({
-      ...p,
-      marriedAt: p.maritalStatus === 'MARRIED' ? p.marriedAt || null : null,
-      youngestChildBirthDate: p.childrenCount > 0 ? p.youngestChildBirthDate || null : null,
-      dualIncome: married && p.dualIncome,
-      sigunguCode: mySigungu.some((r) => r.code === p.sigunguCode) ? p.sigunguCode : null,
-    });
+    onSubmit(
+      {
+        ...p,
+        marriedAt: p.maritalStatus === 'MARRIED' ? p.marriedAt || null : null,
+        youngestChildBirthDate: p.childrenCount > 0 ? p.youngestChildBirthDate || null : null,
+        dualIncome: married && p.dualIncome,
+        sigunguCode: mySigungu.some((r) => r.code === p.sigunguCode) ? p.sigunguCode : null,
+      },
+      canLocalOnly && localOnly,
+    );
   };
 
   return (
@@ -158,6 +166,11 @@ export function ProfileForm({
       <Section title="해당 여부">
         <Toggle label="대학생 · 졸업(중퇴) 2년 이내" checked={p.isStudent} onChange={(v) => set('isStudent', v)} />
         <Toggle label="주거급여 수급자" checked={p.isHousingBenefitRecipient} onChange={(v) => set('isHousingBenefitRecipient', v)} />
+        <Toggle label="산업단지 입주기업 근로자" hint="산업단지형 행복주택 계층. 교육·연구기관 포함" checked={p.isIndustrialWorker} onChange={(v) => set('isIndustrialWorker', v)} />
+        <Toggle label="주택청약종합저축 가입" hint="대부분 공고가 입주 전까지 가입을 요구" checked={p.hasSubscriptionAccount} onChange={(v) => set('hasSubscriptionAccount', v)} />
+        <Field label="재직기간 (년)" hint="사회초년생은 보통 5년 이내. 무직이면 비워두세요">
+          <input type="number" min={0} max={60} className="field" value={p.employedYears ?? ''} onChange={(e) => set('employedYears', e.target.value === '' ? null : Number(e.target.value))} />
+        </Field>
       </Section>
 
       <Section title="지역">
@@ -208,6 +221,15 @@ export function ProfileForm({
         </div>
       </Section>
 
+      {canLocalOnly && (
+        <label className="card flex items-start gap-2.5 p-4 text-sm">
+          <input type="checkbox" className="mt-0.5 size-4 accent-brand" checked={localOnly} onChange={(e) => setLocalOnly(e.target.checked)} />
+          <span>
+            서버에 내 정보를 저장하지 않을래요
+            <span className="block text-[11px] text-muted">생년월일만 계정에 남기고 소득·자산 등 나머지 조건은 이 브라우저에만 보관해요. 다른 기기에선 다시 입력해야 해요.</span>
+          </span>
+        </label>
+      )}
       {(localError ?? error) && <p className="text-sm text-danger">{localError ?? error}</p>}
       <div className="flex justify-end">
         <button type="submit" className="btn-primary" disabled={submitting}>

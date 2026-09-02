@@ -12,6 +12,8 @@ create table users (
   kakao_id    text unique,
   email       text unique,                 -- 카카오 계정 이메일(필수 동의). ADMIN_EMAILS 판정 기준
   nickname    text,
+  profile_local_only boolean not null default false, -- 체크 시 생년월일만 서버, 나머지 조건은 브라우저 localStorage
+  birth_date  date,                        -- profile_local_only일 때만 사용
   created_at  timestamptz not null default now()
 );
 
@@ -30,6 +32,9 @@ create table user_profiles (
   car_value                    bigint,                              -- 자동차가액 (원)
   is_student                   boolean not null default false,
   is_housing_benefit_recipient boolean not null default false,      -- 주거급여수급자
+  has_subscription_account     boolean not null default false,      -- 주택청약종합저축 가입
+  is_industrial_worker         boolean not null default false,      -- 산업단지 입주기업 근로자 (INDUSTRIAL 계층)
+  employed_years               smallint,                            -- 재직기간(년). 사회초년생 판정용, 아직 규칙엔 미사용
   sido_code                    char(2) not null,                    -- 거주지 (법정동코드 앞 2자리)
   sigungu_code                 char(5),                             -- 거주지 (법정동코드 앞 5자리)
   preferred_sigungu_codes      char(5)[] not null default '{}',     -- 관심 지역. 비어 있으면 거주 시도 전체
@@ -242,6 +247,7 @@ insert into eligibility_rules
   ('SINGLE_PARENT',   '행복주택', '한부모가족',        null, null, false, null,    6, 100, null, 345000000, 45420000, 10, '2026-01-01'),
   ('SENIOR',          '행복주택', '고령자',              65, null, false, null, null, 100, null, 345000000, 45420000, 20, '2026-01-01'),
   ('HOUSING_BENEFIT', '행복주택', '주거급여수급자',    null, null, false, null, null, null, null, 345000000, 45420000, 20, '2026-01-01'),
+  ('INDUSTRIAL',      '행복주택', '산업단지근로자',    null, null, false, null, null,  100, null, 345000000, 45420000, 10, '2026-01-01'),
   -- HUG 든든전세: 2026.7.24 수시 공고문 확인 결과 자격이 '공고일 기준 무주택세대구성원' 뿐.
   -- 공고문 전문에 '소득'·'자산' 단어가 0회 등장하고 선정은 무작위 추첨. 나머지 컬럼을 비워 무주택만 판정한다
   ('HUG_JEONSE',      '든든전세', 'HUG 든든전세',      null, null, false, null, null, null, null,      null,     null,  8, '2026-01-01');

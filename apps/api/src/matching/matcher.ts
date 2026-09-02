@@ -14,6 +14,9 @@ export interface Profile {
   carValue: number | null;
   isStudent: boolean;
   isHousingBenefitRecipient: boolean;
+  hasSubscriptionAccount: boolean;
+  isIndustrialWorker: boolean;
+  employedYears: number | null;
 }
 
 export interface Rule {
@@ -118,6 +121,9 @@ export function evaluate(p: Profile, rule: Rule, incomeBase100: number, today = 
 
   if (rule.code === 'STUDENT') {
     checks.push({ label: '재학·졸업 2년 이내', ok: p.isStudent, detail: p.isStudent ? '해당' : '해당 없음' });
+  }
+  if (rule.code === 'INDUSTRIAL') {
+    checks.push({ label: '산업단지 근로', ok: p.isIndustrialWorker, detail: p.isIndustrialWorker ? '입주기업 근로자' : '해당 없음' });
   }
   if (rule.code === 'HOUSING_BENEFIT') {
     checks.push({ label: '주거급여수급자', ok: p.isHousingBenefitRecipient, detail: p.isHousingBenefitRecipient ? '해당' : '해당 없음' });
