@@ -80,6 +80,7 @@ export function HomePage() {
                             isNew={withinDays(n.matchedAt, 3)}
                             selected={selectedId === n.id}
                             bookmarked={bookmarks.ids.has(n.id)}
+                            highlightGroups={n.matchedCodes}
                             onToggleBookmark={() => bookmarks.toggle(n.id)}
                             onShowMap={() => showOnMap(n.id)}
                           />

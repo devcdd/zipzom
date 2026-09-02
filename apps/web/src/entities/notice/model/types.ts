@@ -16,6 +16,21 @@ export interface House {
   minMonthlyRent: number | null;
   lat: number | null;
   lng: number | null;
+  eligibleGroups: string[] | null; // 이 단지에 배정된 계층 코드. null = 미상
+}
+
+/** 공고문에서 뽑은 공고별 자격 기준 (계층 단위). 없으면 공통 규칙 */
+export interface NoticeEligibility {
+  code: string;
+  label: string;
+  ageMin: number | null;
+  ageMax: number | null;
+  incomePct: number | null;
+  dualIncomePct: number | null;
+  assetLimit: number | null;
+  carLimit: number | null;
+  exempt: string[]; // 공고가 명시적으로 배제한 요건: income·asset·car
+  conditions: string[];
 }
 
 export interface Notice {
@@ -35,4 +50,5 @@ export interface Notice {
   contact: string | null;
   phase: Phase;
   houses: House[];
+  eligibility: NoticeEligibility[];
 }

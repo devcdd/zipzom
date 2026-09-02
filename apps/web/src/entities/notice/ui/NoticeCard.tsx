@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { fmtDate, fmtRent } from '@/shared/lib';
+import { fmtDate, fmtRent, fmtWon } from '@/shared/lib';
 import { Tag } from '@/shared/ui';
+import { groupLabel } from '../lib/groups';
 import { PHASE } from '../lib/phase';
 import { NoticeTimeline } from './NoticeTimeline';
 import type { Notice } from '../model/types';
@@ -19,6 +20,7 @@ export function NoticeCard({
   isNew,
   selected,
   bookmarked,
+  highlightGroups,
   onShowMap,
   onToggleBookmark,
 }: {
@@ -26,10 +28,13 @@ export function NoticeCard({
   isNew?: boolean;
   selected?: boolean;
   bookmarked?: boolean;
+  highlightGroups?: string[]; // 내 매칭에서 통과한 계층 → 자격·배정 칩 강조
   onShowMap?: () => void;
   onToggleBookmark?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const hit = new Set(highlightGroups ?? []);
   const houses = n.houses.filter((h) => h.name || h.address);
   const shown = expanded ? houses : houses.slice(0, 3);
 
@@ -85,7 +90,14 @@ export function NoticeCard({
         <ul className="divide-y divide-line rounded-lg border border-line text-[13px]">
           {shown.map((h) => (
             <li key={h.id} className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5 px-3 py-2">
-              <span className="truncate font-medium">{h.name ?? h.address}</span>
+              <span className="flex min-w-0 items-center gap-1.5">
+                <span className="truncate font-medium">{h.name ?? h.address}</span>
+                {h.eligibleGroups?.map((g) => (
+                  <span key={g} className={`shrink-0 rounded px-1 text-[10px] leading-4 ${hit.has(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`}>
+                    {groupLabel(g)}
+                  </span>
+                ))}
+              </span>
               <span className="whitespace-nowrap text-right text-muted">
                 {h.supplyCount ? `${h.supplyCount}호` : h.totalHouseholds ? `${h.totalHouseholds}세대` : ''}
               </span>
@@ -107,6 +119,50 @@ export function NoticeCard({
             </li>
           )}
         </ul>
+      )}
+      {n.eligibility.length > 0 && (
+        <section className="rounded-lg border border-line bg-surface-2/40 px-3 py-2 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="mr-1 font-semibold text-muted">지원 자격</span>
+            {n.eligibility.map((e) => (
+              <button
+                key={e.code}
+                type="button"
+                aria-pressed={openGroup === e.code}
+                onClick={() => setOpenGroup(openGroup === e.code ? null : e.code)}
+                className={`rounded-full border px-2 py-0.5 transition-colors ${
+                  hit.has(e.code) ? 'border-brand bg-brand text-white' : 'border-line bg-surface text-ink hover:border-brand/40'
+                } ${openGroup === e.code ? 'ring-2 ring-brand/30' : ''}`}
+              >
+                {e.label}
+                {e.exempt.includes('income') ? <span className="ml-1 opacity-70">소득 무관</span> : e.incomePct != null && <span className="ml-1 opacity-70">소득 {e.incomePct}%</span>}
+              </button>
+            ))}
+          </div>
+          {(() => {
+            const e = n.eligibility.find((x) => x.code === openGroup);
+            if (!e) return null;
+            const nums = [
+              e.ageMin != null || e.ageMax != null ? `나이 ${e.ageMin ?? ''}~${e.ageMax ?? ''}세` : null,
+              e.exempt.includes('income') ? '소득 요건 없음' : e.incomePct != null ? `소득 ${e.incomePct}%${e.dualIncomePct != null ? ` (맞벌이 ${e.dualIncomePct}%)` : ''}` : null,
+              e.exempt.includes('asset') ? '자산 요건 없음' : e.assetLimit != null ? `총자산 ${fmtWon(e.assetLimit)}` : null,
+              e.exempt.includes('car') ? '자동차 요건 없음' : e.carLimit != null ? `자동차 ${e.carLimit === 0 ? '소유 불가' : fmtWon(e.carLimit)}` : null,
+            ].filter(Boolean);
+            return (
+              <div className="mt-2 space-y-1 text-muted">
+                {nums.length > 0 && <p>{nums.join(' · ')}</p>}
+                {e.conditions.length > 0 && (
+                  <ul className="list-disc pl-4">
+                    {e.conditions.map((c, i) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-[11px]">공고문 기준 요약. 최종 자격은 원문으로 확인하세요.</p>
+              </div>
+            );
+          })()}
+        </section>
       )}
       <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted">
         <div>
