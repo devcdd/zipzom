@@ -33,6 +33,7 @@ export interface SyncReport {
 export class SyncService implements OnModuleInit {
   private readonly log = new Logger(SyncService.name);
   private running: Promise<SyncReport> | null = null;
+  private startedAt: number | null = null;
 
   constructor(private readonly db: Db) {}
 
@@ -54,9 +55,20 @@ export class SyncService implements OnModuleInit {
     return this.running !== null;
   }
 
+  /** 진행 중인 실행이 시작된 시각. 브라우저를 새로 열어도 서버 기준 경과 시간을 보여주려고 노출한다 */
+  get runningSince(): string | null {
+    return this.startedAt === null ? null : new Date(this.startedAt).toISOString();
+  }
+
   /** 어드민 수동 트리거와 스케줄이 겹치면 진행 중인 실행을 공유한다. */
   runAll(): Promise<SyncReport> {
-    this.running ??= this.doRunAll().finally(() => (this.running = null));
+    if (!this.running) {
+      this.startedAt = Date.now();
+      this.running = this.doRunAll().finally(() => {
+        this.running = null;
+        this.startedAt = null;
+      });
+    }
     return this.running;
   }
 

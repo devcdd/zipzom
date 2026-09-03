@@ -231,8 +231,10 @@ export class ExtractionService {
     await this.db.query(`update notice_extractions set status = 'REJECTED', reviewed_at = now() where notice_id = $1`, [noticeId]);
   }
 
+  /** 재추출도 선택 추출과 같은 큐를 탄다. 요청을 붙잡고 있으면 새로고침에 결과를 놓치고 중복 실행도 막지 못한다 */
   retry(noticeId: number) {
-    return this.extract(noticeId);
+    this.enqueue([noticeId]);
+    return this.queueStatus;
   }
 
   /** 추출 후보 공고 목록. 어드민이 여기서 골라 enqueue한다. 중복·정정으로 숨긴 공고는 뺀다. */

@@ -11,6 +11,7 @@ export interface SyncRun {
 
 export interface SyncStatus {
   running: boolean;
+  startedAt: string | null; // 서버 기준 현재 실행 시작 시각
   runs: SyncRun[];
 }
 

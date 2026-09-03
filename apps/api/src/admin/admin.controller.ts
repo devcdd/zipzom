@@ -69,7 +69,7 @@ export class AdminController {
       `select distinct on (source) source, started_at as "startedAt", finished_at as "finishedAt", fetched, upserted, error
        from sync_runs order by source, started_at desc`,
     );
-    return { running: this.sync.isRunning, runs };
+    return { running: this.sync.isRunning, startedAt: this.sync.runningSince, runs };
   }
 
   /** 자동 병합된 중복 공고 쌍. 대표(canonical)만 목록에 노출되고 duplicate는 숨겨진 상태다. */
@@ -139,8 +139,7 @@ export class AdminController {
   }
 
   @Post('extractions/:noticeId/retry')
-  async retry(@Param('noticeId', ParseIntPipe) noticeId: number) {
-    await this.extraction.retry(noticeId);
-    return { ok: true };
+  retry(@Param('noticeId', ParseIntPipe) noticeId: number) {
+    return this.extraction.retry(noticeId);
   }
 }

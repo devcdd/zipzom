@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { GROUP_CODES, groupLabel } from '@/entities/notice';
 import { useAsync } from '@/shared/lib';
 import { PageState, Tag, type TagTone } from '@/shared/ui';
@@ -55,7 +55,7 @@ const fmtTs = (iso: string) => {
 };
 
 /** 원문 PDF 옆에서 자격 기준·단지 표를 셀 단위로 고쳐 승인. 승인 전엔 아무것도 반영되지 않는다 */
-function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () => void }) {
+function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChanged: () => void; queued?: boolean }) {
   // 스키마 확장 전에 저장된 행은 groups·exempt·conditions가 없다
   const [houses, setHouses] = useState<ExtractedHouse[]>((item.houses ?? []).map((h) => ({ ...h, groups: h.groups ?? [], areaMin: h.areaMin ?? null, areaMax: h.areaMax ?? null })));
   const [elig, setElig] = useState<ExtractedEligibility[]>((item.eligibility ?? []).map((e) => ({ ...e, exempt: e.exempt ?? [], conditions: e.conditions ?? [] })));
@@ -138,7 +138,7 @@ function ExtractionCard({ item, onChanged }: { item: Extraction; onChanged: () =
               void run(() => extractionApi.retry(item.noticeId));
             }}
           >
-            {busy ? '추출 중…' : '다시 추출'}
+            {queued ? '추출 대기 중…' : '다시 추출'}
           </button>
         </div>
       </div>
@@ -349,7 +349,18 @@ export function ExtractionReview() {
   const [status, setStatus] = useState<Extraction['status'] | 'ALL'>('ALL');
   const [offset, setOffset] = useState(0);
   const list = useAsync(() => extractionApi.list({ status: status === 'ALL' ? undefined : status, limit: LIMIT, offset }), [status, offset]);
+  // 추출은 서버 큐에서 백그라운드로 돈다. 새로고침해도 이 폴링이 진행 상황을 다시 붙잡는다
+  const queue = useAsync(() => extractionApi.queue(), []);
   const total = list.data?.total ?? 0;
+
+  useEffect(() => {
+    if (!queue.data?.running) return;
+    const t = setTimeout(() => {
+      queue.reload();
+      list.reload();
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [queue.data, queue, list]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -369,6 +380,9 @@ export function ExtractionReview() {
             </button>
           ))}
         </div>
+        {queue.data?.running && (
+          <span className="text-xs text-muted">추출 중… {queue.data.current ? `#${queue.data.current}` : ''} 남은 {queue.data.queued}건</span>
+        )}
         {list.data && (
           <span className="text-xs text-muted">
             {total === 0 ? 0 : offset + 1}–{Math.min(offset + LIMIT, total)} / {total}
@@ -378,7 +392,12 @@ export function ExtractionReview() {
       <PageState loading={list.loading && !list.data} error={list.error} empty={list.data?.items.length === 0} emptyMessage="해당 상태의 추출이 없어요. '추출 대상' 탭에서 공고를 골라 추출하면 여기 쌓여요.">
         <div className="flex flex-col gap-3">
           {list.data?.items.map((item) => (
-            <ExtractionCard key={`${item.noticeId}-${item.status}-${item.createdAt}`} item={item} onChanged={list.reload} />
+            <ExtractionCard
+              key={`${item.noticeId}-${item.status}-${item.createdAt}`}
+              item={item}
+              onChanged={list.reload}
+              queued={queue.data?.current === item.noticeId}
+            />
           ))}
         </div>
       </PageState>
