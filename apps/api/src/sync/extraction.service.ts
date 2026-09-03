@@ -5,6 +5,7 @@ import { fetchLhFiles, parseLhParams, pickLhNoticePdf, type LhPanKey } from './l
 
 // 행복주택 계열 공급정보 유형 코드. 상세 API는 이 중 하나면 응답한다
 const LH_SPL_CANDIDATES = ['063', '060', '061', '062'];
+import { fetchMyhomeAttachments, MYHOME_FILE_DOWNLOAD_URL, pickMyhomeNoticePdf } from './myhome.client.js';
 import { fetchShAttachments, pickShNoticePdf } from './sh-rss.client.js';
 
 export interface Extraction {
@@ -26,6 +27,7 @@ export interface Extraction {
 interface PdfRef {
   url: string;
   name: string;
+  body?: string; // 있으면 POST 폼 (마이홈 다운로드)
 }
 
 @Injectable()
@@ -54,9 +56,14 @@ export class ExtractionService {
     if (!n) throw new NotFoundException(`notice ${noticeId} not found`);
     let pdf: PdfRef | undefined;
     try {
-      pdf = n.source === 'SH' ? await this.shPdf(n.detail_url) : await this.lhPdf(n.raw ?? {});
+      pdf = await this.findPdf(n.source, n.detail_url, n.raw ?? {});
       if (!pdf) throw new Error('공고문 PDF 첨부 없음');
-      const res = await fetch(pdf.url, { headers: { 'user-agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(60_000) });
+      const res = await fetch(pdf.url, {
+        method: pdf.body ? 'POST' : 'GET',
+        headers: { 'user-agent': 'Mozilla/5.0', ...(pdf.body ? { 'content-type': 'application/x-www-form-urlencoded' } : {}) },
+        body: pdf.body,
+        signal: AbortSignal.timeout(60_000),
+      });
       if (!res.ok) throw new Error(`pdf HTTP ${res.status}`);
       const { houses, eligibility, usage } = await extractFromPdf(new Uint8Array(await res.arrayBuffer()), pdf.name, { withHouseDetail: n.source === 'SH' });
       await this.db.query(
@@ -77,6 +84,29 @@ export class ExtractionService {
         [noticeId, pdf?.url ?? n.detail_url ?? '', pdf?.name ?? null, error],
       );
     }
+  }
+
+  /**
+   * 소스별 공고문 PDF 경로. SH → 게시판 첨부, LH 링크 → LH 상세 API, 그 외 마이홈 공고 → 마이홈 상세 페이지 첨부.
+   * LH 경로가 비면 마이홈 첨부로 한 번 더 시도 (같은 파일이 마이홈에도 올라온다)
+   */
+  private async findPdf(source: string, detailUrl: string | null, raw: Record<string, string | undefined>): Promise<PdfRef | undefined> {
+    if (source === 'SH') return this.shPdf(detailUrl);
+    const lhKey = raw.PAN_ID || parseLhParams(raw.url ?? raw.DTL_URL);
+    if (lhKey) {
+      try {
+        const f = await this.lhPdf(raw);
+        if (f) return f;
+      } catch (e) {
+        this.log.warn(`lh pdf lookup failed, falling back to myhome page: ${e instanceof Error ? e.message : e}`);
+      }
+    }
+    return raw.pcUrl ? this.myhomePdf(raw.pcUrl) : undefined;
+  }
+
+  private async myhomePdf(pcUrl: string): Promise<PdfRef | undefined> {
+    const f = pickMyhomeNoticePdf(await fetchMyhomeAttachments(pcUrl));
+    return f && { url: MYHOME_FILE_DOWNLOAD_URL, name: f.name, body: new URLSearchParams({ atchFileId: f.atchFileId, fileSn: f.fileSn }).toString() };
   }
 
   private async shPdf(viewUrl: string | null): Promise<PdfRef | undefined> {
@@ -177,11 +207,11 @@ export class ExtractionService {
     return this.extract(noticeId);
   }
 
-  /** 진행·예정 중인 LH 행복주택 공고(마이홈·LH 직접수집, 대표만) 중 추출 행이 없는 것. 한 번에 limit개 (건당 1분 안팎이라 동기화가 길어지지 않게) */
-  async pendingLhNoticeIds(limit: number): Promise<number[]> {
+  /** 진행·예정 중인 행복주택 공고(마이홈 전 기관·LH 직접수집, 대표만) 중 추출 행이 없는 것. SH는 수집 때 바로 추출 */
+  async pendingNoticeIds(limit: number): Promise<number[]> {
     const rows = await this.db.query<{ id: number }>(
       `select n.id from notices n
-       where n.institution = 'LH' and n.supply_type = '행복주택' and n.duplicate_of is null
+       where n.source in ('MYHOME', 'LH') and n.supply_type = '행복주택' and n.duplicate_of is null
          and coalesce(n.apply_end_on, n.posted_on + 45) >= current_date
          and not exists (select 1 from notice_extractions e where e.notice_id = n.id)
        order by n.posted_on desc limit $1`,

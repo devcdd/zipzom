@@ -22,7 +22,7 @@ export interface SyncReport {
   myhome: { fetched: number; notices: number; error?: string };
   sh: { fetched: number; notices: number; error?: string };
   lhArea: { updated: number; error?: string };
-  lhExtract: { attempted: number; error?: string };
+  extract: { attempted: number; error?: string };
   hug: { fetched: number; notices: number; error?: string };
   lh: { fetched: number; notices: number; error?: string };
   merge: { linked: number };
@@ -68,7 +68,7 @@ export class SyncService implements OnModuleInit {
       myhome: await this.tracked('MYHOME', () => this.syncMyhome()),
       sh: await this.tracked('SH', () => this.syncSh()),
       lhArea: await this.enrichLhAreas(),
-      lhExtract: await this.extractLh(),
+      extract: await this.extractPending(),
       hug: await this.tracked('HUG', () => this.syncHug()),
       lh: await this.tracked('LH', () => this.syncLh()),
       merge: await this.linkDuplicates(),
@@ -351,11 +351,11 @@ export class SyncService implements OnModuleInit {
     }
   }
 
-  /** LH 행복주택 공고문 자격 추출. 마이홈 단지 정보는 그대로 두고 자격·배정 계층만 뽑는다. 백그라운드라 회당 30건 */
-  async extractLh(limit = 30) {
+  /** 행복주택 공고문 자격 추출(LH API → 마이홈 첨부 순). 마이홈 단지 정보는 그대로 두고 자격·배정 계층만 뽑는다. 백그라운드라 회당 30건 */
+  async extractPending(limit = 30) {
     if (!this.extraction.enabled) return { attempted: 0 };
     try {
-      const ids = await this.extraction.pendingLhNoticeIds(limit);
+      const ids = await this.extraction.pendingNoticeIds(limit);
       for (const id of ids) await this.extraction.extract(id);
       return { attempted: ids.length };
     } catch (e) {
