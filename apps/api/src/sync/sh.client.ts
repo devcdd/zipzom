@@ -124,10 +124,12 @@ export function parseShNotice(html: string): ShNoticeDetail {
   const text = shBodyText(html);
 
   // 접수: "인터넷 접수 : 2026. 9. 9.( 수 ) 10:00 ~ 9. 11.( 금 ) 17:00" (끝쪽 연도 생략 가능)
-  // 매입임대는 '청약신청', 행복주택은 '인터넷 접수'로 쓰는 등 머리말이 유형마다 다르다
+  // 머리말이 유형마다 다르고(행복주택 '인터넷 접수', 매입임대 '청약신청'),
+  // "청약신청 일정(인터넷 및 방문) ○ [1순위] 2026. 9. 14." 처럼 머리말과 날짜 사이에 문구가 끼기도 한다.
+  // 사이 문구는 60자까지만 허용하고, '~'로 이어지는 종료일이 있어야 성립시켜 엉뚱한 날짜를 안 집는다
   let applyBeginOn: string | null = null;
   let applyEndOn: string | null = null;
-  const apply = text.match(new RegExp(String.raw`(?:인터넷\s*접수|청약\s*신청|신청\s*접수|접수\s*일?(?:시|간)?)\s*[:：]?\s*${D}[^~]{0,30}~\s*(?:(\d{4})\.\s*)?(\d{1,2})\.\s*(\d{1,2})`));
+  const apply = text.match(new RegExp(String.raw`(?:인터넷\s*접수|청약\s*신청|청약\s*접수|신청\s*접수|신청\s*기간|접수\s*기간|접수\s*일?(?:시|간)?)\s*[:：]?.{0,60}?${D}[^~]{0,30}~\s*(?:(\d{4})\.\s*)?(\d{1,2})\.\s*(\d{1,2})`));
   if (apply) {
     applyBeginOn = iso(apply[1], apply[2], apply[3]);
     applyEndOn = iso(apply[4] ?? apply[1], apply[5], apply[6]);

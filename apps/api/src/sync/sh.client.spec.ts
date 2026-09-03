@@ -24,6 +24,16 @@ describe('parseShNotice', () => {
     expect(r.applyEndOn).toBe('2026-09-30');
   });
 
+  it('머리말과 날짜 사이에 문구가 끼어도 잡는다 — 장기전세 순위별 일정', () => {
+    const r = parseShNotice('■ 청약신청 일정 ( 인터넷 및 방문 ) ○ [1 순위 ] 2026. 9. 14.( 월 ) 10:00 ~ 2026. 9. 15.( 화 ) 17:00');
+    expect(r.applyBeginOn).toBe('2026-09-14');
+    expect(r.applyEndOn).toBe('2026-09-15');
+  });
+
+  it('접수 문구만 있고 기간이 없으면 null — 엉뚱한 날짜를 집지 않는다', () => {
+    expect(parseShNotice('■ 문의처 ○ 신청접수 및 입주자 선정 : 동 주민센터에서 신청접수 2026.08.27. 서울주택도시개발공사').applyBeginOn).toBeNull();
+  });
+
   it('연도 넘어가는 접수기간', () => {
     const r = parseShNotice('신청접수: 2026. 12. 30. ~ 2027. 1. 2.');
     expect(r.applyBeginOn).toBe('2026-12-30');
