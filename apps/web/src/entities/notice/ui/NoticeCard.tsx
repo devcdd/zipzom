@@ -18,6 +18,7 @@ function MapPinIcon() {
 export function NoticeCard({
   notice: n,
   isNew,
+  unverified,
   selected,
   selectedHouseId,
   bookmarked,
@@ -28,6 +29,7 @@ export function NoticeCard({
 }: {
   notice: Notice;
   isNew?: boolean;
+  unverified?: boolean; // 이 공급유형의 공통 자격 규칙이 없어 판정하지 못한 공고
   selected?: boolean;
   selectedHouseId?: number | null; // 지도에서 고른 단지 행 강조
   bookmarked?: boolean;
@@ -61,6 +63,7 @@ export function NoticeCard({
         {n.houseType && <Tag>{n.houseType}</Tag>}
         <Tag tone={PHASE[n.phase].tone}>{PHASE[n.phase].label}</Tag>
         {isNew && <Tag tone="danger">NEW</Tag>}
+        {unverified && <Tag tone="warn">자격 기준 미등록</Tag>}
         <NoticeTimeline notice={n} />
       </div>
       <div className="flex items-start gap-2">

@@ -12,7 +12,13 @@ export interface NoticeQuery {
   order?: 'recent';
 }
 
+export interface SupplyTypeCount {
+  supplyType: string;
+  count: number;
+}
+
 export const noticeApi = {
+  supplyTypes: () => request<SupplyTypeCount[]>('/notices/supply-types'),
   list: (query: NoticeQuery) =>
     request<{ total: number; items: Notice[] }>(
       `/notices?${qs({

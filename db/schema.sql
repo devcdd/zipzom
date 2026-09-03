@@ -38,6 +38,7 @@ create table user_profiles (
   sido_code                    char(2) not null,                    -- 거주지 (법정동코드 앞 2자리)
   sigungu_code                 char(5),                             -- 거주지 (법정동코드 앞 5자리)
   preferred_sigungu_codes      char(5)[] not null default '{}',     -- 관심 지역. 비어 있으면 거주 시도 전체
+  preferred_supply_types       text[] not null default '{}',        -- 관심 공급유형. 비어 있으면 전 유형
   updated_at                   timestamptz not null default now()
 );
 

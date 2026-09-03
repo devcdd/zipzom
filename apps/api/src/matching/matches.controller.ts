@@ -21,9 +21,8 @@ export class MatchesController {
   @Post()
   async evaluate(@Body() body: unknown, @CurrentUser() user: SessionUser | null) {
     const profile = parse(profileSchema, body);
-    const rules = await this.matching.rules();
-    // 공통 규칙에서 떨어져도 공고별 기준(자격완화 등)으로 붙을 수 있으니 규칙이 있는 공급유형은 모두 후보로 가져온다
-    const supplyTypes = [...new Set(rules.map((r) => r.supplyType))];
+    // 후보 범위는 사용자가 고른 관심 공급유형. 비워두면 전 유형 (규칙 유무로 우리가 좁히지 않는다)
+    const supplyTypes = profile.preferredSupplyTypes.length > 0 ? profile.preferredSupplyTypes : null;
 
     // 'XX000'은 시도 전체 선택. 관심 지역이 없으면 거주 시도
     const sigungu = profile.preferredSigunguCodes.filter((c) => !c.endsWith('000'));
@@ -40,7 +39,8 @@ export class MatchesController {
 
     const { evaluations, matches } = await this.matching.annotate(profile, items);
     const matchedRules = evaluations.filter((e) => e.ok).map((e) => e.code);
-    const passed = matches.filter((p) => p.codes.length > 0);
+    // 자격을 못 따진 유형도 남긴다. 화면에서 '자격 기준 미등록'으로 구분해 보여준다
+    const passed = matches.filter((p) => p.codes.length > 0 || p.unverified);
 
     const matchedAt = new Map<number, string>();
     if (passed.length && user) {
@@ -56,7 +56,13 @@ export class MatchesController {
     return {
       eligible: matchedRules.length > 0 || passed.length > 0,
       evaluations,
-      notices: passed.map((p) => ({ ...p.notice, matchedAt: matchedAt.get(p.notice.id), matchedCodes: p.codes, noticeSpecific: p.overridden })),
+      notices: passed.map((p) => ({
+        ...p.notice,
+        matchedAt: matchedAt.get(p.notice.id),
+        matchedCodes: p.codes,
+        noticeSpecific: p.overridden,
+        unverified: p.unverified,
+      })),
     };
   }
 }

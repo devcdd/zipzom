@@ -1,4 +1,4 @@
-export { noticeApi, type NoticeQuery } from './api/noticeApi';
+export { noticeApi, type NoticeQuery, type SupplyTypeCount } from './api/noticeApi';
 export { PHASE } from './lib/phase';
 export type { House, Notice, NoticeEligibility, Phase } from './model/types';
 export { GROUP_CODES, GROUP_LABEL, groupLabel } from './lib/groups';

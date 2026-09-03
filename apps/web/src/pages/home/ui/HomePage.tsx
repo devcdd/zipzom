@@ -79,6 +79,7 @@ export function HomePage() {
                             key={n.id}
                             notice={n}
                             isNew={withinDays(n.matchedAt, 3)}
+                            unverified={n.unverified}
                             selected={selectedId === n.id}
                             selectedHouseId={selectedId === n.id ? selectedHouseId : null}
                             bookmarked={bookmarks.ids.has(n.id)}

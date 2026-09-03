@@ -70,6 +70,15 @@ export interface ListFilter {
 export class NoticesService {
   constructor(private readonly db: Db) {}
 
+  /** 프로필 화면의 관심 공급유형 선택지. 수집된 값이 그대로 목록이 된다 */
+  supplyTypes(): Promise<{ supplyType: string; count: number }[]> {
+    return this.db.query<{ supplyType: string; count: number }>(
+      `select supply_type as "supplyType", count(*)::int as count
+       from notices where supply_type is not null and duplicate_of is null
+       group by 1 order by 2 desc`,
+    );
+  }
+
   async list(f: ListFilter): Promise<{ total: number; items: Notice[] }> {
     const rows = await this.db.query<Notice & { total: number }>(
       `with n as (

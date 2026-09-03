@@ -26,10 +26,12 @@ export const profileSchema = z.object({
   sidoCode: z.string().length(2),
   sigunguCode: z.string().length(5).nullable().default(null),
   preferredSigunguCodes: z.array(z.string().length(5)).max(50).default([]),
+  // 비우면 전 유형. 유형 문자열은 수집 소스가 주는 값이라 열거형으로 못 묶는다
+  preferredSupplyTypes: z.array(z.string().min(1).max(40)).max(30).default([]),
 });
 
 export type ProfileInput = z.infer<typeof profileSchema>;
-export type StoredProfile = Profile & Pick<ProfileInput, 'sidoCode' | 'sigunguCode' | 'preferredSigunguCodes'>;
+export type StoredProfile = Profile & Pick<ProfileInput, 'sidoCode' | 'sigunguCode' | 'preferredSigunguCodes' | 'preferredSupplyTypes'>;
 
 const SELECT = `
   select birth_date::text as "birthDate", marital_status as "maritalStatus", married_at::text as "marriedAt",
@@ -38,13 +40,15 @@ const SELECT = `
     dual_income as "dualIncome", is_homeless as "isHomeless", total_assets as "totalAssets", car_value as "carValue",
     is_student as "isStudent", is_housing_benefit_recipient as "isHousingBenefitRecipient",
     has_subscription_account as "hasSubscriptionAccount", is_industrial_worker as "isIndustrialWorker", employed_years as "employedYears",
-    sido_code as "sidoCode", sigungu_code as "sigunguCode", preferred_sigungu_codes as "preferredSigunguCodes"
+    sido_code as "sidoCode", sigungu_code as "sigunguCode", preferred_sigungu_codes as "preferredSigunguCodes",
+    preferred_supply_types as "preferredSupplyTypes"
   from user_profiles where user_id = $1`;
 
 const values = (p: ProfileInput) => [
   p.birthDate, p.maritalStatus, p.marriedAt, p.childrenCount, p.youngestChildBirthDate, p.householdSize,
   p.householdMonthlyIncome, p.dualIncome, p.isHomeless, p.totalAssets, p.carValue, p.isStudent,
   p.isHousingBenefitRecipient, p.hasSubscriptionAccount, p.isIndustrialWorker, p.employedYears, p.sidoCode, p.sigunguCode, p.preferredSigunguCodes,
+  p.preferredSupplyTypes,
 ];
 
 @Injectable()
@@ -79,8 +83,9 @@ export class ProfilesService {
     await this.db.query(
       `insert into user_profiles (user_id, birth_date, marital_status, married_at, children_count, youngest_child_birth_date,
          household_size, household_monthly_income, dual_income, is_homeless, total_assets, car_value, is_student,
-         is_housing_benefit_recipient, has_subscription_account, is_industrial_worker, employed_years, sido_code, sigungu_code, preferred_sigungu_codes)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+         is_housing_benefit_recipient, has_subscription_account, is_industrial_worker, employed_years, sido_code, sigungu_code, preferred_sigungu_codes,
+         preferred_supply_types)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
        on conflict (user_id) do update set birth_date = excluded.birth_date, marital_status = excluded.marital_status,
          married_at = excluded.married_at, children_count = excluded.children_count,
          youngest_child_birth_date = excluded.youngest_child_birth_date, household_size = excluded.household_size,
@@ -89,7 +94,8 @@ export class ProfilesService {
          is_student = excluded.is_student, is_housing_benefit_recipient = excluded.is_housing_benefit_recipient,
          has_subscription_account = excluded.has_subscription_account, is_industrial_worker = excluded.is_industrial_worker,
          employed_years = excluded.employed_years, sido_code = excluded.sido_code, sigungu_code = excluded.sigungu_code,
-         preferred_sigungu_codes = excluded.preferred_sigungu_codes, updated_at = now()`,
+         preferred_sigungu_codes = excluded.preferred_sigungu_codes,
+         preferred_supply_types = excluded.preferred_supply_types, updated_at = now()`,
       [userId, ...values(p)],
     );
     return (await this.get(userId))!;

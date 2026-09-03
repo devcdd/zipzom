@@ -20,6 +20,7 @@ export interface Profile {
   sidoCode: string;
   sigunguCode: string | null;
   preferredSigunguCodes: string[];
+  preferredSupplyTypes: string[]; // 비우면 전 유형
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -42,6 +43,7 @@ export const EMPTY_PROFILE: Profile = {
   sidoCode: '11',
   sigunguCode: null,
   preferredSigunguCodes: [],
+  preferredSupplyTypes: [],
 };
 
 export const MARITAL_LABEL: Record<MaritalStatus, string> = {

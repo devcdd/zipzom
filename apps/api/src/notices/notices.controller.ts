@@ -23,6 +23,11 @@ const querySchema = z.object({
 export class NoticesController {
   constructor(private readonly notices: NoticesService) {}
 
+  @Get('supply-types')
+  supplyTypes() {
+    return this.notices.supplyTypes();
+  }
+
   @Get()
   list(@Query() query: Record<string, string>) {
     const f = parse(querySchema, query);

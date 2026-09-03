@@ -1,7 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { noticeApi } from '@/entities/notice';
 import { MARITAL_LABEL, type MaritalStatus, type Profile } from '@/entities/profile';
 import { groupBySido, isSidoCode, mergeSidos, regionLabel, type Region } from '@/entities/region';
-import { ageOn, toManwon, toWon } from '@/shared/lib';
+import { ageOn, toManwon, toWon, useAsync } from '@/shared/lib';
 import { DateParts } from './DateParts';
 
 const MARITALS = Object.keys(MARITAL_LABEL) as MaritalStatus[];
@@ -59,6 +60,9 @@ export function ProfileForm({
   const set = <K extends keyof Profile>(k: K, v: Profile[K]) => setP((prev) => ({ ...prev, [k]: v }));
   const sidos = mergeSidos(regions);
   const groups = groupBySido(regions, sidos);
+  const supplyTypes = useAsync(() => noticeApi.supplyTypes(), []);
+  const toggleSupplyType = (t: string) =>
+    set('preferredSupplyTypes', p.preferredSupplyTypes.includes(t) ? p.preferredSupplyTypes.filter((x) => x !== t) : [...p.preferredSupplyTypes, t]);
   const mySigungu = regions.filter((r) => r.sidoCode === p.sidoCode && !isSidoCode(r.code));
   const married = p.maritalStatus !== 'SINGLE';
 
@@ -220,6 +224,26 @@ export function ProfileForm({
               </div>
             ))}
             {groups.length === 0 && <p className="px-3 py-2 text-xs text-muted">아직 수집된 공고가 없어요. 어드민에서 동기화를 먼저 실행해 주세요.</p>}
+          </div>
+        </div>
+        <div className="sm:col-span-2">
+          <span className="label">관심 공급유형</span>
+          <p className="mb-2 text-[11px] text-muted">비우면 전 유형을 봐요. 숫자는 현재 수집된 공고 수. 자격 기준이 아직 없는 유형은 판정 없이 목록에만 올라와요.</p>
+          <div className="flex flex-wrap gap-1.5">
+            {(supplyTypes.data ?? []).map((t) => {
+              const on = p.preferredSupplyTypes.includes(t.supplyType);
+              return (
+                <button
+                  key={t.supplyType}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleSupplyType(t.supplyType)}
+                  className={`whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs transition-colors ${on ? 'border-brand bg-brand-soft text-brand' : 'border-line bg-surface text-muted hover:text-ink'}`}
+                >
+                  {t.supplyType} <span className="opacity-60">{t.count}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </Section>
