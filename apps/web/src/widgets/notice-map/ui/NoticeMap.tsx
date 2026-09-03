@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { groupLabel } from '@/entities/notice';
 import { loadKakaoMaps } from '@/shared/lib';
 import type { MapMarker } from '../lib/markers';
 
@@ -121,7 +122,7 @@ export function NoticeMap({
     const kakaoMarkers = markersRef.current.map((m) => {
       const pos = new kakao.maps.LatLng(m.lat, m.lng);
       bounds.extend(pos);
-      const marker = new kakao.maps.Marker({ position: pos, title: m.name, image });
+      const marker = new kakao.maps.Marker({ position: pos, title: m.title, image });
       markerData.current.set(marker, m);
       kakao.maps.event.addListener(marker, 'click', () => openBubble(m, pos));
       return marker;
@@ -207,6 +208,24 @@ function buildBubble(m: MapMarker): HTMLElement {
   title.className = 'text-muted truncate';
   title.textContent = m.noticeTitle;
   root.appendChild(title);
+  if (m.groups.length) {
+    // 배정 계층 칩. 내 매칭 계층은 초록으로
+    const chips = document.createElement('p');
+    chips.className = 'mt-1 flex flex-wrap gap-1';
+    for (const g of m.groups) {
+      const c = document.createElement('span');
+      c.className = `rounded px-1 text-[10px] leading-4 ${m.matched.includes(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`;
+      c.textContent = groupLabel(g);
+      chips.appendChild(c);
+    }
+    root.appendChild(chips);
+  }
+  if (m.areaText) {
+    const area = document.createElement('p');
+    area.className = 'text-muted';
+    area.textContent = m.areaText;
+    root.appendChild(area);
+  }
   if (m.rentText) {
     const rent = document.createElement('p');
     rent.textContent = m.rentText;
