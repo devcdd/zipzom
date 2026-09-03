@@ -6,7 +6,7 @@ import { fetchLhFiles, parseLhParams, pickLhNoticePdf, type LhPanKey } from './l
 // 행복주택 계열 공급정보 유형 코드. 상세 API는 이 중 하나면 응답한다
 const LH_SPL_CANDIDATES = ['063', '060', '061', '062'];
 import { fetchMyhomeAttachments, MYHOME_FILE_DOWNLOAD_URL, pickMyhomeNoticePdf } from './myhome.client.js';
-import { fetchShAttachments, pickShNoticePdf } from './sh-rss.client.js';
+import { fetchShAttachments, pickShNoticePdf } from './sh.client.js';
 
 export interface Extraction {
   noticeId: number;
@@ -34,6 +34,9 @@ interface PdfRef {
 @Injectable()
 export class ExtractionService {
   private readonly log = new Logger(ExtractionService.name);
+  private readonly queue: number[] = [];
+  private current: number | null = null;
+  private worker: Promise<void> | null = null;
 
   constructor(private readonly db: Db) {}
 
@@ -41,11 +44,29 @@ export class ExtractionService {
     return !!process.env.OPENAI_API_KEY;
   }
 
-  /** 아직 추출 행이 없는 공고만. 실패해도 FAILED 행을 남겨 매일 재시도하지 않는다 (어드민에서 수동 재시도). */
-  async extractIfMissing(noticeId: number) {
-    const exists = await this.db.one(`select 1 from notice_extractions where notice_id = $1`, [noticeId]);
-    if (exists) return;
-    await this.extract(noticeId);
+  /**
+   * 어드민이 고른 공고를 순서대로 추출한다. 건당 LLM 입력이 10만 토큰대라 자동으로는 돌리지 않는다.
+   * 요청은 바로 반환하고 큐가 백그라운드로 비워진다 — 진행 상황은 queueStatus로 폴링.
+   */
+  enqueue(noticeIds: number[]): number {
+    if (!this.enabled) throw new Error('OPENAI_API_KEY 없음 — 추출 비활성');
+    const added = noticeIds.filter((id) => id !== this.current && !this.queue.includes(id));
+    this.queue.push(...added);
+    this.worker ??= this.drain().finally(() => (this.worker = null));
+    return added.length;
+  }
+
+  get queueStatus() {
+    return { running: this.worker !== null, current: this.current, queued: this.queue.length };
+  }
+
+  private async drain() {
+    while (this.queue.length) {
+      this.current = this.queue.shift()!;
+      // extract는 실패도 FAILED 행으로 삼키지만, 공고가 없으면 던진다
+      await this.extract(this.current).catch((e) => this.log.warn(`extraction skipped for ${this.current}: ${e instanceof Error ? e.message : e}`));
+      this.current = null;
+    }
   }
 
   /** 공고 소스별로 공고문 PDF를 찾아 LLM 추출. SH는 단지 표까지, LH(마이홈)는 단지 정보가 이미 있어 자격·배정만 */
@@ -211,18 +232,41 @@ export class ExtractionService {
     return this.extract(noticeId);
   }
 
-  /** 진행·예정 중인 행복주택 공고(마이홈 전 기관·LH 직접수집, 대표만) 중 추출 행이 없는 것. SH는 수집 때 바로 추출 */
-  async pendingNoticeIds(limit: number): Promise<number[]> {
-    const rows = await this.db.query<{ id: number }>(
-      `select n.id from notices n
-       where n.source in ('MYHOME', 'LH') and n.supply_type = '행복주택' and n.duplicate_of is null
-         -- 정정공고가 가리키는 이전 공고는 목록에서도 숨기므로 추출하지 않는다
+  /** 추출 후보 공고 목록. 어드민이 여기서 골라 enqueue한다. 중복·정정으로 숨긴 공고는 뺀다. */
+  async targets(f: ExtractTargetFilter): Promise<{ total: number; items: ExtractTarget[] }> {
+    const rows = await this.db.query<ExtractTarget & { total: number }>(
+      `select n.id, n.source, n.title, n.supply_type as "supplyType", n.posted_on::text as "postedOn",
+         n.apply_end_on::text as "applyEndOn", n.detail_url as "detailUrl", e.status as "extractionStatus",
+         count(*) over()::int as total
+       from notices n left join notice_extractions e on e.notice_id = n.id
+       where n.duplicate_of is null
          and not exists (select 1 from notices n2 where n2.source = n.source and n2.raw->>'beforePblancId' = n.source_id)
-         and coalesce(n.apply_end_on, n.posted_on + 45) >= current_date
-         and not exists (select 1 from notice_extractions e where e.notice_id = n.id)
-       order by n.posted_on desc limit $1`,
-      [limit],
+         and ($1::notice_source is null or n.source = $1)
+         and ($2::text is null or n.title ilike '%' || $2 || '%')
+         and ($3::boolean is not true or e.notice_id is null)
+       order by n.posted_on desc nulls last, n.id desc
+       limit $4 offset $5`,
+      [f.source ?? null, f.q?.trim() || null, f.onlyMissing ?? false, f.limit, f.offset],
     );
-    return rows.map((r) => r.id);
+    return { total: rows[0]?.total ?? 0, items: rows.map(({ total: _t, ...r }) => r) };
   }
+}
+
+export interface ExtractTarget {
+  id: number;
+  source: Extraction['source'];
+  title: string;
+  supplyType: string | null;
+  postedOn: string | null;
+  applyEndOn: string | null;
+  detailUrl: string | null;
+  extractionStatus: Extraction['status'] | null;
+}
+
+export interface ExtractTargetFilter {
+  source?: Extraction['source'] | null;
+  q?: string | null;
+  onlyMissing?: boolean;
+  limit: number;
+  offset: number;
 }

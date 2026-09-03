@@ -1,19 +1,20 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { Db } from '../db.js';
 import { SIDO_NAMES } from '../notices/sido.js';
-import { ExtractionService } from './extraction.service.js';
 import { planMerges, type DedupeRow } from './dedupe.js';
 import { geocode } from './geocoder.js';
 import { fetchHugJeonseRows, groupHugNotices, hugEnabled } from './hug.client.js';
 import { fetchLhComplexes, fetchLhDetail, fetchLhNotices, lhDate, lhEnabled, parseArea, parseLhParams, type LhNotice } from './lh.client.js';
 import { fetchMyhomeNotices, type MyhomeItem } from './myhome.client.js';
-import { fetchShHappyHouseNotices, parseShNotice } from './sh-rss.client.js';
+import { fetchShDetail, fetchShListPage, parseShNotice, shBodyText, shDetailBody, shSupplyType, shViewUrl, type ShListRow } from './sh.client.js';
 
 const DAY = 86_400_000;
 // HUG는 공고별 상세 URL을 API로 주지 않아 목록 페이지로 보낸다
 // 화면에 노출하는 공급유형만 LH에서 가져온다 (국민임대·영구임대 등은 수집 대상 밖)
 const SUPPLY_TYPES = ['행복주택'];
 const HUG_LIST_URL = 'https://www.khug.or.kr/jeonse/web/s09/s090101.jsp';
+// ponytail: SH 상세 페이지 동시 요청 수. 더 올리면 게시판이 대기열(NetFunnel)로 밀어낼 수 있어 5로 둔다
+const SH_CONCURRENCY = 5;
 const ymd = (s: string) => (/^\d{8}$/.test(s) ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6)}` : null);
 const num = (v: number | string | null | undefined) => (v === '' || v == null ? null : Number(v));
 const yyyymm = (d: Date) => `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -22,7 +23,6 @@ export interface SyncReport {
   myhome: { fetched: number; notices: number; error?: string };
   sh: { fetched: number; notices: number; error?: string };
   lhArea: { updated: number; error?: string };
-  extract: { attempted: number; error?: string };
   hug: { fetched: number; notices: number; error?: string };
   lh: { fetched: number; notices: number; error?: string };
   merge: { linked: number };
@@ -34,10 +34,7 @@ export class SyncService implements OnModuleInit {
   private readonly log = new Logger(SyncService.name);
   private running: Promise<SyncReport> | null = null;
 
-  constructor(
-    private readonly db: Db,
-    private readonly extraction: ExtractionService,
-  ) {}
+  constructor(private readonly db: Db) {}
 
   async onModuleInit() {
     // ponytail: setInterval 일 1회. 실행 시각 고정이 필요해지면 @nestjs/schedule
@@ -68,7 +65,6 @@ export class SyncService implements OnModuleInit {
       myhome: await this.tracked('MYHOME', () => this.syncMyhome()),
       sh: await this.tracked('SH', () => this.syncSh()),
       lhArea: await this.enrichLhAreas(),
-      extract: await this.extractPending(),
       hug: await this.tracked('HUG', () => this.syncHug()),
       lh: await this.tracked('LH', () => this.syncLh()),
       merge: await this.linkDuplicates(),
@@ -148,35 +144,71 @@ export class SyncService implements OnModuleInit {
     return { fetched: items.length, notices: byNotice.size };
   }
 
-  /** SH는 마이홈 API에 집계되지 않아(2026-09 확인) RSS가 유일한 소스. 단지·주소 없음 → 서울 전체 1행. */
+  /**
+   * SH는 마이홈 API에 집계되지 않아(2026-09 확인) 게시판이 유일한 소스. 단지·주소 없음 → 서울 전체 1행.
+   * 유형을 가리지 않고 게시판 전량을 받는다. 첫 실행은 500페이지 넘게 걷고, 이후엔 새 글이 없는 페이지에서 멈춘다.
+   */
   async syncSh() {
-    const items = await fetchShHappyHouseNotices();
     await this.db.query(`insert into regions (code, sido_code, name) values ('11000', '11', '서울특별시') on conflict do nothing`);
-    for (const it of items) {
-      // 본문에서 접수기간·발표일·공급호수 추출 (단지 목록은 첨부 PDF에만 있어 불가)
-      const detail = parseShNotice(it.html);
-      const notice = (await this.db.one<{ id: number }>(
-        `insert into notices (source, source_id, title, institution, supply_type, status, posted_on,
-           apply_begin_on, apply_end_on, winner_announce_on, detail_url, raw)
-         values ('SH', $1, $2, 'SH', '행복주택', '공고', $3, $4, $5, $6, $7, $8)
-         on conflict (source, source_id) do update set title = excluded.title,
-           apply_begin_on = excluded.apply_begin_on, apply_end_on = excluded.apply_end_on,
-           winner_announce_on = excluded.winner_announce_on, raw = excluded.raw, updated_at = now()
-         returning id`,
-        [it.seq, it.title, it.publishedAt, detail.applyBeginOn, detail.applyEndOn, detail.winnerAnnounceOn, it.link, JSON.stringify(it)],
-      ))!;
-      // 단지 목록 없는 동안만 '서울 전체' 플레이스홀더 1행. 추출 승인으로 실제 단지가 들어오면 다시 넣지 않는다
-      await this.db.query(
-        `insert into notice_houses (notice_id, house_sn, sido_code, supply_count)
-         select $1::bigint, '0', '11', $2::int
-         where not exists (select 1 from notice_houses where notice_id = $1::bigint and house_sn <> '0')
-         on conflict (notice_id, house_sn) do update set supply_count = excluded.supply_count`,
-        [notice.id, detail.supplyCount],
-      );
-      // 단지 표는 첨부 PDF에만 있어 LLM 추출 → 어드민 검수 후 반영. 키 없으면 건너뜀
-      if (this.extraction.enabled) await this.extraction.extractIfMissing(notice.id);
+    const seen = new Set(
+      (await this.db.query<{ source_id: string }>(`select source_id from notices where source = 'SH'`)).map((r) => r.source_id),
+    );
+    // 최근 글은 본문이 정정되기도 해서 이미 받은 것도 다시 읽는다
+    const recheckFrom = new Date(Date.now() - 30 * DAY).toISOString().slice(0, 10);
+    let fetched = 0;
+    let notices = 0;
+    let backfilling = true;
+
+    for (let page = 1, lastPage = 1; page <= lastPage; page++) {
+      const list = await fetchShListPage(page);
+      lastPage = list.lastPage;
+      fetched += list.rows.length;
+      // 첫 수집이 중간에 끊겼을 수 있어, 게시판 총 건수(1페이지 첫 글번호)를 다 받기 전에는 조기 종료하지 않는다
+      if (page === 1) backfilling = seen.size < (list.rows[0]?.no ?? 0);
+      const targets = list.rows.filter((r) => !seen.has(r.seq) || r.postedOn >= recheckFrom);
+      // 이 페이지가 통째로 이미 아는 글이면 뒤쪽은 더 오래된 글뿐이다
+      if (!backfilling && page > 1 && targets.length === 0) break;
+      // 상세 페이지가 건당 2초쯤 걸려 순차로 돌리면 첫 수집(5천여 건)이 몇 시간이다
+      for (let i = 0; i < targets.length; i += SH_CONCURRENCY) {
+        const chunk = targets.slice(i, i + SH_CONCURRENCY);
+        await Promise.all(chunk.map((row) => this.upsertShNotice(row)));
+        for (const row of chunk) seen.add(row.seq);
+        notices += chunk.length;
+      }
     }
-    return { fetched: items.length, notices: items.length };
+    return { fetched, notices };
+  }
+
+  private async upsertShNotice(row: ShListRow) {
+    // 본문에서 접수기간·발표일·공급호수 추출 (단지 목록은 첨부 PDF에만 있어 불가)
+    const body = shDetailBody(await fetchShDetail(row.seq));
+    const detail = parseShNotice(body);
+    const supplyType = shSupplyType(row.title);
+    const notice = (await this.db.one<{ id: number }>(
+      `insert into notices (source, source_id, title, institution, supply_type, status, posted_on,
+         apply_begin_on, apply_end_on, winner_announce_on, detail_url, raw)
+       values ('SH', $1, $2, 'SH', $3, '공고', $4, $5, $6, $7, $8, $9)
+       on conflict (source, source_id) do update set title = excluded.title, supply_type = excluded.supply_type,
+         apply_begin_on = excluded.apply_begin_on, apply_end_on = excluded.apply_end_on,
+         winner_announce_on = excluded.winner_announce_on, raw = excluded.raw, updated_at = now()
+       returning id`,
+      [
+        row.seq, row.title, supplyType, row.postedOn,
+        detail.applyBeginOn, detail.applyEndOn, detail.winnerAnnounceOn, shViewUrl(row.seq),
+        // 본문 원문 HTML은 글당 수십 KB라 평문만 남긴다
+        JSON.stringify({ ...row, body: shBodyText(body).slice(0, 4000) }),
+      ],
+    ))!;
+    // 당첨자 발표·안내문까지 단지 행을 만들면 지도·집계에 잡힌다. 모집공고만
+    if (!supplyType) return;
+    // 단지 목록 없는 동안만 '서울 전체' 플레이스홀더 1행. 추출 승인으로 실제 단지가 들어오면 다시 넣지 않는다
+    await this.db.query(
+      `insert into notice_houses (notice_id, house_sn, sido_code, supply_count)
+       select $1::bigint, '0', '11', $2::int
+       where not exists (select 1 from notice_houses where notice_id = $1::bigint and house_sn <> '0')
+       on conflict (notice_id, house_sn) do update set supply_count = excluded.supply_count`,
+      [notice.id, detail.supplyCount],
+    );
   }
 
   /**
@@ -348,20 +380,6 @@ export class SyncService implements OnModuleInit {
       const error = e instanceof Error ? e.message : String(e);
       this.log.warn(`lh area enrich stopped: ${error}`);
       return { updated, error };
-    }
-  }
-
-  /** 행복주택 공고문 자격 추출(LH API → 마이홈 첨부 순). 마이홈 단지 정보는 그대로 두고 자격·배정 계층만 뽑는다. 백그라운드라 회당 30건 */
-  async extractPending(limit = 30) {
-    if (!this.extraction.enabled) return { attempted: 0 };
-    try {
-      const ids = await this.extraction.pendingNoticeIds(limit);
-      for (const id of ids) await this.extraction.extract(id);
-      return { attempted: ids.length };
-    } catch (e) {
-      const error = e instanceof Error ? e.message : String(e);
-      this.log.warn(`lh extraction stopped: ${error}`);
-      return { attempted: 0, error };
     }
   }
 

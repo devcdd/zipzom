@@ -24,7 +24,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-zipzom}:${POSTGRES_PASSWORD:-zipzom}@db:5432/${POSTGRES_DB:-zipzom}
       WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8081}
-      SH_RSS_URL: ${SH_RSS_URL:-https://www.i-sh.co.kr/main/lay2/program/S1T294C295/www/rss/rssNoticeWrite.do}
+      SH_LIST_URL: ${SH_LIST_URL:-https://www.i-sh.co.kr/main/lay2/program/S1T294C295/www/brd/m_241/list.do?multi_itm_seqs=1,2,4,8,16,32,64,256}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.6-luna}
     depends_on:
       db:

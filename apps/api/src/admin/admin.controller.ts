@@ -92,6 +92,32 @@ export class AdminController {
     return { ok: true };
   }
 
+  /** 추출을 돌릴 공고 고르기. 추출은 건당 LLM 입력 10만 토큰대라 자동으로 돌지 않는다 */
+  @Get('extract-targets')
+  extractTargets(@Query() query: Record<string, string>) {
+    const f = parse(
+      pageSchema.extend({
+        source: z.enum(['MYHOME', 'LH', 'SH', 'HUG']).optional(),
+        q: z.string().optional(),
+        onlyMissing: z.enum(['true', 'false']).optional(),
+      }),
+      query,
+    );
+    return this.extraction.targets({ source: f.source ?? null, q: f.q ?? null, onlyMissing: f.onlyMissing === 'true', limit: f.limit, offset: f.offset });
+  }
+
+  @Post('extractions/run')
+  runExtractions(@Body() body: unknown) {
+    const { noticeIds } = parse(z.object({ noticeIds: z.array(z.number().int().positive()).min(1).max(200) }), body);
+    const added = this.extraction.enqueue(noticeIds);
+    return { added, ...this.extraction.queueStatus };
+  }
+
+  @Get('extractions/queue')
+  extractionQueue() {
+    return this.extraction.queueStatus;
+  }
+
   @Get('extractions')
   extractions(@Query() query: Record<string, string>) {
     const f = parse(pageSchema.extend({ status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'FAILED']).optional() }), query);
