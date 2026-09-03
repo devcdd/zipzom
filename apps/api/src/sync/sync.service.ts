@@ -180,8 +180,14 @@ export class SyncService implements OnModuleInit {
   }
 
   private async upsertShNotice(row: ShListRow) {
+    // 게시판이 특정 글에만 영구 500을 준다(seq 3033). 한 건 때문에 5천 건 수집을 멈추지 않고,
+    // 목록에서 얻은 제목·등록일만으로 넣는다. 일정은 비고, 최근 30일 글이면 다음 동기화에서 다시 시도한다
+    const html = await fetchShDetail(row.seq).catch((e: unknown) => {
+      this.log.warn(`sh detail ${row.seq} failed, saving list data only: ${e instanceof Error ? e.message : e}`);
+      return '';
+    });
     // 본문에서 접수기간·발표일·공급호수 추출 (단지 목록은 첨부 PDF에만 있어 불가)
-    const body = shDetailBody(await fetchShDetail(row.seq));
+    const body = shDetailBody(html);
     const detail = parseShNotice(body);
     const supplyType = shSupplyType(row.title);
     const notice = (await this.db.one<{ id: number }>(
