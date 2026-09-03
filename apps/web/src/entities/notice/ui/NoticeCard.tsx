@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { fmtArea, fmtDate, fmtRent, fmtWon } from '@/shared/lib';
 import { Tag } from '@/shared/ui';
 import { groupLabel } from '../lib/groups';
@@ -36,13 +36,17 @@ export function NoticeCard({
   onShowHouse?: (houseId: number) => void; // 단지 행 클릭 → 지도에서 그 단지
   onToggleBookmark?: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const hit = new Set(highlightGroups ?? []);
   // 내 매칭 계층에 배정된 단지가 먼저. 나머지는 서버 순서 유지(안정 정렬)
   const forMe = (h: Notice['houses'][number]) => hit.size > 0 && (h.eligibleGroups ?? []).some((g) => hit.has(g));
   const houses = n.houses.filter((h) => h.name || h.address).sort((a, b) => Number(forMe(b)) - Number(forMe(a)));
-  const shown = expanded ? houses : houses.slice(0, 3);
+
+  // 단지 목록이 카드 안에서 스크롤되므로, 지도에서 고른 단지가 접힌 영역에 있으면 보이게 끌어올린다
+  useEffect(() => {
+    if (selectedHouseId == null) return;
+    document.getElementById(`house-${selectedHouseId}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [selectedHouseId]);
 
   return (
     <article
@@ -93,10 +97,12 @@ export function NoticeCard({
         )}
       </div>
       {houses.length > 0 && (
-        <ul className="divide-y divide-line border-y border-line text-[13px]">
-          {shown.map((h) => (
+        // 단지가 많은 공고(SH는 60곳 넘음)도 카드 높이를 고정해 지도와 나란히 볼 수 있게. 4행 남짓 보이고 나머지는 안에서 스크롤
+        <ul className="max-h-72 divide-y divide-line overflow-y-auto overscroll-contain border-y border-line text-[13px]">
+          {houses.map((h) => (
             <li
               key={h.id}
+              id={`house-${h.id}`}
               onClick={onShowHouse && h.lat != null ? () => onShowHouse(h.id) : undefined}
               aria-selected={selectedHouseId === h.id || undefined}
               className={`flex flex-col gap-0.5 py-2 ${onShowHouse && h.lat != null ? 'cursor-pointer transition-colors hover:bg-surface-2/60' : ''} ${selectedHouseId === h.id ? 'house-selected' : ''}`}
@@ -119,17 +125,6 @@ export function NoticeCard({
               </span>
             </li>
           ))}
-          {houses.length > 3 && (
-            <li>
-              <button
-                type="button"
-                onClick={() => setExpanded((v) => !v)}
-                className="w-full py-2 text-left text-xs text-brand hover:bg-surface-2"
-              >
-                {expanded ? '접기' : `단지 ${houses.length - 3}곳 더 보기`}
-              </button>
-            </li>
-          )}
         </ul>
       )}
       {(n.eligibility?.length ?? 0) > 0 && (
