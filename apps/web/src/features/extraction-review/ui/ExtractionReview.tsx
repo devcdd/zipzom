@@ -375,7 +375,7 @@ export function ExtractionReview() {
           </span>
         )}
       </div>
-      <PageState loading={list.loading && !list.data} error={list.error} empty={list.data?.items.length === 0} emptyMessage="해당 상태의 추출이 없어요. 동기화 후 SH·LH 공고가 들어오면 여기 쌓여요.">
+      <PageState loading={list.loading && !list.data} error={list.error} empty={list.data?.items.length === 0} emptyMessage="해당 상태의 추출이 없어요. '추출 대상' 탭에서 공고를 골라 추출하면 여기 쌓여요.">
         <div className="flex flex-col gap-3">
           {list.data?.items.map((item) => (
             <ExtractionCard key={`${item.noticeId}-${item.status}-${item.createdAt}`} item={item} onChanged={list.reload} />

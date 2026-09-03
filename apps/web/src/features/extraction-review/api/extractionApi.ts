@@ -46,6 +46,24 @@ export interface Extraction {
   reviewedAt: string | null;
 }
 
+/** 추출 후보 공고. extractionStatus가 null이면 아직 한 번도 안 돌린 공고 */
+export interface ExtractTarget {
+  id: number;
+  source: Extraction['source'];
+  title: string;
+  supplyType: string | null;
+  postedOn: string | null;
+  applyEndOn: string | null;
+  detailUrl: string | null;
+  extractionStatus: Extraction['status'] | null;
+}
+
+export interface ExtractQueue {
+  running: boolean;
+  current: number | null;
+  queued: number;
+}
+
 const post = (noticeId: number, action: 'approve' | 'reject' | 'retry', body?: object) =>
   request<unknown>(`/admin/extractions/${noticeId}/${action}`, { method: 'POST', body: body && JSON.stringify(body) });
 
@@ -55,4 +73,10 @@ export const extractionApi = {
   approve: (noticeId: number, houses: ExtractedHouse[], eligibility: ExtractedEligibility[]) => post(noticeId, 'approve', { houses, eligibility }),
   reject: (noticeId: number) => post(noticeId, 'reject'),
   retry: (noticeId: number) => post(noticeId, 'retry'),
+  targets: (q: { source?: Extraction['source']; q?: string; onlyMissing?: boolean; limit: number; offset: number }) =>
+    request<{ total: number; items: ExtractTarget[] }>(
+      `/admin/extract-targets?${qs({ source: q.source, q: q.q, onlyMissing: q.onlyMissing ? 'true' : undefined, limit: String(q.limit), offset: String(q.offset) })}`,
+    ),
+  run: (noticeIds: number[]) => request<{ added: number } & ExtractQueue>('/admin/extractions/run', { method: 'POST', body: JSON.stringify({ noticeIds }) }),
+  queue: () => request<ExtractQueue>('/admin/extractions/queue'),
 };
