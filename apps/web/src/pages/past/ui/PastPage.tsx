@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useBookmarks } from '@/entities/bookmark';
-import { NoticeCard, SUPPLY_TYPES, noticeApi } from '@/entities/notice';
+import { NoticeCard, noticeApi } from '@/entities/notice';
 import { useSession } from '@/entities/user';
 import { useAsync, useDebounce } from '@/shared/lib';
 import { PageState } from '@/shared/ui';
@@ -16,7 +16,7 @@ export function PastPage() {
   const bookmarks = useBookmarks(sessionLoading ? undefined : !!me);
   // 검색은 서버에서 (공고명 + 단지명). 전체 마감 공고가 브라우저에 다 있지 않으므로 프론트 필터로는 못 찾는다
   const page = useAsync(
-    () => noticeApi.list({ supplyTypes: SUPPLY_TYPES, phase: ['closed'], order: 'recent', q: q || undefined, limit: LIMIT, offset }),
+    () => noticeApi.list({ phase: ['closed'], order: 'recent', q: q || undefined, limit: LIMIT, offset }),
     [offset, q],
   );
 

@@ -1,6 +1,3 @@
-/** 수집 대상 공급유형. 행복주택은 LH·SH·마이홈, 든든전세는 HUG. */
-export const SUPPLY_TYPES = ['행복주택', '든든전세'];
-
 export type Phase = 'upcoming' | 'open' | 'closed';
 
 export interface House {

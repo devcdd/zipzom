@@ -114,7 +114,8 @@ export class NoticesService {
            'carLimit', ne.car_limit, 'exempt', ne.exempt, 'conditions', ne.conditions) order by ne.code) as eligibility
          from notice_eligibility ne where ne.notice_id = n.id
        ) el on true
-       where ($1::text[] is null or n.supply_type = any($1))
+       -- 유형을 안 주면 모집공고만. SH 게시판에는 당첨자 발표·안내문도 담기고 그건 supply_type이 없다
+       where (case when $1::text[] is null then n.supply_type is not null else n.supply_type = any($1) end)
          and ($2::text[] is null or n.phase = any($2))
          and (($3::text[] is null and $4::text[] is null) or exists (
                select 1 from notice_houses nh where nh.notice_id = n.id

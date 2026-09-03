@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useBookmarks } from '@/entities/bookmark';
-import { NoticeCard, SUPPLY_TYPES, noticeApi } from '@/entities/notice';
+import { NoticeCard, noticeApi } from '@/entities/notice';
 import { isSidoCode, type Region } from '@/entities/region';
 import { useSession } from '@/entities/user';
 import { DEFAULT_FILTERS, NoticeFilters, phaseParam, type NoticeFiltersValue } from '@/features/notice-filters';
@@ -20,7 +20,6 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
   const { data, loading, error } = useAsync(
     () =>
       noticeApi.list({
-        supplyTypes: SUPPLY_TYPES,
         phase: phaseParam(filters.phase),
         sido: picked.filter(isSidoCode).map((c) => c.slice(0, 2)),
         sigungu: picked.filter((c) => !isSidoCode(c)),
