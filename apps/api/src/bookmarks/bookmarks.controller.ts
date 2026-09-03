@@ -1,7 +1,9 @@
 import { Controller, Delete, Get, Param, ParseIntPipe, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard, CurrentUser, type SessionUser } from '../auth/auth.js';
 import { Db } from '../db.js';
+import { MatchingService } from '../matching/matching.service.js';
 import { NoticesService } from '../notices/notices.service.js';
+import { ProfilesService } from '../profiles/profiles.service.js';
 
 @Controller('bookmarks')
 @UseGuards(AuthGuard)
@@ -9,6 +11,8 @@ export class BookmarksController {
   constructor(
     private readonly db: Db,
     private readonly notices: NoticesService,
+    private readonly profiles: ProfilesService,
+    private readonly matching: MatchingService,
   ) {}
 
   @Get()
@@ -17,12 +21,19 @@ export class BookmarksController {
     return { noticeIds: rows.map((r) => r.notice_id) };
   }
 
-  /** 마감된 공고도 포함 — 북마크는 지난 공고 참고용으로도 쓴다 */
+  /**
+   * 마감된 공고도 포함 — 북마크는 지난 공고 참고용으로도 쓴다.
+   * 서버에 프로필이 있으면 내 매칭과 같은 판정을 붙여 준다 (matchedCodes). 없으면 빈 배열
+   */
   @Get('notices')
   async list(@CurrentUser() user: SessionUser) {
     const { noticeIds } = await this.ids(user);
     if (noticeIds.length === 0) return { total: 0, items: [] };
-    return this.notices.list({ ids: noticeIds, limit: 200, offset: 0 });
+    const { total, items } = await this.notices.list({ ids: noticeIds, limit: 200, offset: 0 });
+    const profile = await this.profiles.get(user.id);
+    if (!profile) return { total, items: items.map((n) => ({ ...n, matchedCodes: [] as string[], noticeSpecific: false })) };
+    const { matches } = await this.matching.annotate(profile, items);
+    return { total, items: matches.map((m) => ({ ...m.notice, matchedCodes: m.codes, noticeSpecific: m.overridden })) };
   }
 
   @Put(':noticeId')

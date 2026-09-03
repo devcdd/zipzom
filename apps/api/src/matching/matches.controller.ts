@@ -4,13 +4,14 @@ import { parse } from '../validate.js';
 import { Db } from '../db.js';
 import { NoticesService } from '../notices/notices.service.js';
 import { profileSchema } from '../profiles/profiles.service.js';
-import { applyOverride, evaluate, type Rule } from './matcher.js';
+import { MatchingService } from './matching.service.js';
 
 @Controller('matches')
 export class MatchesController {
   constructor(
     private readonly db: Db,
     private readonly notices: NoticesService,
+    private readonly matching: MatchingService,
   ) {}
 
   /**
@@ -20,20 +21,7 @@ export class MatchesController {
   @Post()
   async evaluate(@Body() body: unknown, @CurrentUser() user: SessionUser | null) {
     const profile = parse(profileSchema, body);
-    const rules = await this.db.query<Rule>(
-      `select code, supply_type as "supplyType", label, min_age as "minAge", max_age as "maxAge", requires_unmarried as "requiresUnmarried",
-         marriage_within_years as "marriageWithinYears", child_max_age as "childMaxAge", income_pct as "incomePct",
-         dual_income_pct as "dualIncomePct", bonus_pct_1p as "bonusPct1p", bonus_pct_2p as "bonusPct2p",
-         asset_limit as "assetLimit", car_limit as "carLimit", max_residence_years as "maxResidenceYears"
-       from eligibility_rules where effective_from <= current_date order by code`,
-    );
-    const base = await this.db.one<{ amount: number }>(
-      `select amount from income_standards
-       where household_size = $1 and apply_year = (select max(apply_year) from income_standards where apply_year <= $2)`,
-      [Math.min(profile.householdSize, 6), new Date().getFullYear()],
-    );
-    const evaluations = rules.map((r) => evaluate(profile, r, base?.amount ?? 0));
-    const matchedRules = evaluations.filter((e) => e.ok).map((e) => e.code);
+    const rules = await this.matching.rules();
     // 공통 규칙에서 떨어져도 공고별 기준(자격완화 등)으로 붙을 수 있으니 규칙이 있는 공급유형은 모두 후보로 가져온다
     const supplyTypes = [...new Set(rules.map((r) => r.supplyType))];
 
@@ -50,19 +38,9 @@ export class MatchesController {
       offset: 0,
     });
 
-    // 공고별 자격 기준이 있으면 그걸로 판정, 없으면 그 공급유형의 공통 규칙 통과 여부. 공통 규칙에 없는 계층(INDUSTRIAL·OTHER)은 판정 불가라 제외
-    const perNotice = items.map((n) => {
-      if (n.eligibility.length === 0) {
-        const codes = rules.filter((r) => r.supplyType === n.supplyType && matchedRules.includes(r.code)).map((r) => r.code);
-        return { notice: n, codes, overridden: false };
-      }
-      const codes = rules
-        .filter((r) => n.eligibility.some((e) => e.code === r.code))
-        .filter((r) => evaluate(profile, applyOverride(r, n.eligibility.find((e) => e.code === r.code)), base?.amount ?? 0).ok)
-        .map((r) => r.code);
-      return { notice: n, codes, overridden: true };
-    });
-    const passed = perNotice.filter((p) => p.codes.length > 0);
+    const { evaluations, matches } = await this.matching.annotate(profile, items);
+    const matchedRules = evaluations.filter((e) => e.ok).map((e) => e.code);
+    const passed = matches.filter((p) => p.codes.length > 0);
 
     const matchedAt = new Map<number, string>();
     if (passed.length && user) {

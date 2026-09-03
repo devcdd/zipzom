@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useBookmarks } from '@/entities/bookmark';
 import { matchApi } from '@/entities/match';
-import { NoticeCard } from '@/entities/notice';
+import { NoticeCard, sortForMe } from '@/entities/notice';
 import { useProfile } from '@/entities/profile';
 import { regionApi } from '@/entities/region';
 import { useSession } from '@/entities/user';
@@ -74,15 +74,7 @@ export function HomePage() {
                   ) : (
                     <div className={`grid items-start gap-4 ${wide ? "" : "lg:grid-cols-[minmax(0,1fr)_400px]"}`}>
                       <div className="grid gap-3">
-                        {[...matches.data.notices]
-                          // 지도에서 고른 공고 → 내 계층에 배정된 단지가 있는 공고 → 나머지
-                          .sort((a, b) => {
-                            const sel = Number(b.id === selectedId) - Number(a.id === selectedId);
-                            if (sel) return sel;
-                            const mine = (x: (typeof matches.data.notices)[number]) => x.houses.some((h) => (h.eligibleGroups ?? []).some((g) => x.matchedCodes.includes(g)));
-                            return Number(mine(b)) - Number(mine(a));
-                          })
-                          .map((n) => (
+                        {sortForMe(matches.data.notices, selectedId).map((n) => (
                           <NoticeCard
                             key={n.id}
                             notice={n}

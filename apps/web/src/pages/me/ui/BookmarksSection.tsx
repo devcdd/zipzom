@@ -1,13 +1,14 @@
 import { bookmarkApi, useBookmarks } from '@/entities/bookmark';
-import { NoticeCard } from '@/entities/notice';
+import { NoticeCard, sortForMe } from '@/entities/notice';
 import { useAsync } from '@/shared/lib';
 import { PageState } from '@/shared/ui';
 
 export function BookmarksSection() {
   const bookmarks = useBookmarks(true);
   const list = useAsync(() => bookmarkApi.notices(), []);
-  // 목록에서 해제하면 즉시 사라지도록 현재 북마크 집합으로 거른다. 마감 공고도 그대로 남는다
-  const items = (list.data?.items ?? []).filter((n) => bookmarks.ids.has(n.id));
+  // 목록에서 해제하면 즉시 사라지도록 현재 북마크 집합으로 거른다. 마감 공고도 그대로 남는다.
+  // 내 계층 배정 단지가 있는 공고가 먼저 (내 매칭 화면과 같은 기준, 서버가 프로필로 판정한 matchedCodes 사용)
+  const items = sortForMe((list.data?.items ?? []).filter((n) => bookmarks.ids.has(n.id)), null);
 
   return (
     <section className="flex flex-col gap-3">
@@ -20,7 +21,7 @@ export function BookmarksSection() {
       >
         <div className="grid gap-3">
           {items.map((n) => (
-            <NoticeCard key={n.id} notice={n} bookmarked onToggleBookmark={() => bookmarks.toggle(n.id)} />
+            <NoticeCard key={n.id} notice={n} bookmarked highlightGroups={n.matchedCodes} onToggleBookmark={() => bookmarks.toggle(n.id)} />
           ))}
         </div>
       </PageState>
