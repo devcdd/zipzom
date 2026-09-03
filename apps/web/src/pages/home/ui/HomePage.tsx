@@ -113,6 +113,12 @@ export function HomePage() {
           )}
         </PageState>
       )}
+
+      <div className="flex justify-center pt-2">
+        <a href="#/past" className="btn-ghost">
+          지난 공고 보기
+        </a>
+      </div>
     </div>
   );
 }

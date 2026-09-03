@@ -9,6 +9,7 @@ export interface NoticeQuery {
   q?: string;
   limit?: number;
   offset?: number;
+  order?: 'recent';
 }
 
 export const noticeApi = {
@@ -22,6 +23,7 @@ export const noticeApi = {
         q: query.q,
         limit: query.limit?.toString(),
         offset: query.offset?.toString(),
+        order: query.order,
       })}`,
     ),
 };

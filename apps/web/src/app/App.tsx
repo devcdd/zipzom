@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AdminPage } from '@/pages/admin';
 import { HomePage } from '@/pages/home';
 import { MePage } from '@/pages/me';
+import { PastPage } from '@/pages/past';
 import { ProfilePage } from '@/pages/profile';
 import { SessionProvider } from '@/entities/user';
 import { BottomNav } from '@/widgets/bottom-nav';
@@ -20,7 +21,7 @@ function useHashPath() {
 
 export function App() {
   const path = useHashPath();
-  const Page = path.startsWith('/admin') ? AdminPage : path.startsWith('/profile') ? ProfilePage : path.startsWith('/me') ? MePage : HomePage;
+  const Page = path.startsWith('/admin') ? AdminPage : path.startsWith('/profile') ? ProfilePage : path.startsWith('/me') ? MePage : path.startsWith('/past') ? PastPage : HomePage;
   return (
     <SessionProvider>
       <div className="flex min-h-svh flex-col">

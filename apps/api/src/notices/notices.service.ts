@@ -61,6 +61,7 @@ export interface ListFilter {
   sidoCodes?: string[] | null; // 2자리 시도 (시군구와 OR)
   q?: string | null;
   ids?: number[] | null; // 북마크 목록 등 특정 공고만
+  order?: 'recent' | null; // recent = 공고일 최신순. 기본은 모집 중 → 마감 임박순
   limit: number;
   offset: number;
 }
@@ -121,10 +122,12 @@ export class NoticesService {
          and ($5::text is null or n.title ilike '%' || $5 || '%'
               or exists (select 1 from notice_houses nh where nh.notice_id = n.id and nh.name ilike '%' || $5 || '%'))
          and ($8::bigint[] is null or n.id = any($8))
-       order by case n.phase when 'open' then 0 when 'upcoming' then 1 else 2 end,
-         n.apply_end_on asc nulls last, n.posted_on desc, n.id desc
+       order by
+         case when $9::text = 'recent' then 0 else case n.phase when 'open' then 0 when 'upcoming' then 1 else 2 end end,
+         case when $9::text = 'recent' then null else n.apply_end_on end asc nulls last,
+         n.posted_on desc nulls last, n.id desc
        limit $6 offset $7`,
-      [f.supplyTypes ?? null, f.phases ?? null, f.sigunguCodes ?? null, f.sidoCodes ?? null, f.q?.trim() || null, f.limit, f.offset, f.ids ?? null],
+      [f.supplyTypes ?? null, f.phases ?? null, f.sigunguCodes ?? null, f.sidoCodes ?? null, f.q?.trim() || null, f.limit, f.offset, f.ids ?? null, f.order ?? null],
     );
     const total = rows[0]?.total ?? 0;
     return { total, items: rows.map(({ total: _t, ...n }) => n) };

@@ -16,6 +16,7 @@ const querySchema = z.object({
   q: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),
+  order: z.enum(['recent']).optional(),
 });
 
 @Controller('notices')
@@ -31,6 +32,7 @@ export class NoticesController {
       sigunguCodes: f.sigungu,
       sidoCodes: f.sido,
       q: f.q ?? null,
+      order: f.order ?? null,
       limit: f.limit,
       offset: f.offset,
     });
