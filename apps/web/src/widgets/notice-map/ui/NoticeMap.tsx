@@ -8,6 +8,21 @@ const BRAND = '#1e7a5b';
 // 초록 원형 인디케이터 (흰 테두리 + 은은한 헤일로)
 const DOT_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26"><circle cx="13" cy="13" r="12" fill="${BRAND}" fill-opacity="0.18"/><circle cx="13" cy="13" r="7" fill="${BRAND}" stroke="#fff" stroke-width="2.5"/></svg>`;
 
+/**
+ * 내 위치 표식. 공고 마커와 구분되게 파란 점 + 퍼져나가는 링.
+ * MarkerImage(SVG)로는 CSS 애니메이션을 걸 수 없어 CustomOverlay로 띄운다.
+ */
+function meDot(): HTMLElement {
+  const root = document.createElement('div');
+  root.className = 'relative size-3.5';
+  const ring = document.createElement('span');
+  ring.className = 'absolute inset-0 animate-ping rounded-full bg-[#2563eb] opacity-70';
+  const dot = document.createElement('span');
+  dot.className = 'absolute inset-0 rounded-full border-2 border-white bg-[#2563eb] shadow-md';
+  root.append(ring, dot);
+  return root;
+}
+
 function greenDot(): kakao.maps.MarkerImage {
   const src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(DOT_SVG)}`;
   return new kakao.maps.MarkerImage(src, new kakao.maps.Size(26, 26), { offset: new kakao.maps.Point(13, 13) });
@@ -57,11 +72,14 @@ export function NoticeMap({
   const clusterer = useRef<kakao.maps.MarkerClusterer | null>(null);
   const overlay = useRef<kakao.maps.CustomOverlay | null>(null);
   const markerData = useRef(new Map<kakao.maps.Marker, MapMarker>());
+  const meMarker = useRef<kakao.maps.CustomOverlay | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
+  const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
   const openBubble = (m: MapMarker, pos: kakao.maps.LatLng) => {
     overlay.current?.setMap(null);
-    overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10, clickable: true });
+    overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1, zIndex: 10, clickable: true });
     overlay.current.setMap(map.current);
     onSelectRef.current?.(m.noticeId, m.houseId);
   };
@@ -135,6 +153,40 @@ export function NoticeMap({
     };
   }, [status, markerKey]);
 
+  // 언마운트 시 내 위치 마커 정리
+  useEffect(() => () => meMarker.current?.setMap(null), []);
+
+  /**
+   * 브라우저 Geolocation으로 내 위치를 받아 지도를 그 주변으로 옮긴다.
+   * 좌표는 지도 이동과 마커 표시에만 쓰고 어디에도 저장·전송하지 않는다.
+   */
+  const goToMyLocation = () => {
+    if (!navigator.geolocation) {
+      setGeoError('이 브라우저는 위치 정보를 지원하지 않아요.');
+      return;
+    }
+    setLocating(true);
+    setGeoError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocating(false);
+        if (!map.current) return;
+        const pos = new kakao.maps.LatLng(coords.latitude, coords.longitude);
+        meMarker.current?.setMap(null);
+        meMarker.current = new kakao.maps.CustomOverlay({ position: pos, content: meDot(), zIndex: 4, clickable: false });
+        meMarker.current.setMap(map.current);
+        map.current.setLevel(5);
+        map.current.panTo(pos);
+      },
+      (e) => {
+        setLocating(false);
+        // PERMISSION_DENIED=1, POSITION_UNAVAILABLE=2, TIMEOUT=3
+        setGeoError(e.code === 1 ? '위치 권한이 거부됐어요. 브라우저 설정에서 허용해 주세요.' : e.code === 3 ? '위치를 가져오는 데 시간이 걸려요. 다시 눌러 주세요.' : '위치를 가져오지 못했어요.');
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
+    );
+  };
+
   useEffect(() => {
     if (status !== 'ready' || !map.current) return;
     // 컨테이너 크기가 바뀐 뒤(전환 애니메이션 없음) 한 프레임 뒤에 다시 그린다
@@ -154,7 +206,7 @@ export function NoticeMap({
       const pos = new kakao.maps.LatLng(m.lat, m.lng);
       map.current.setLevel(4);
       map.current.panTo(pos);
-      overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1.35, zIndex: 10, clickable: true });
+      overlay.current = new kakao.maps.CustomOverlay({ position: pos, content: buildBubble(m), yAnchor: 1, zIndex: 10, clickable: true });
       overlay.current.setMap(map.current);
     } else {
       const bounds = new kakao.maps.LatLngBounds();
@@ -181,6 +233,23 @@ export function NoticeMap({
       {status === 'ready' && markers.length === 0 && (
         <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs text-muted">표시할 좌표가 있는 단지가 없어요</p>
       )}
+      {status === 'ready' && (
+        <button
+          type="button"
+          onClick={goToMyLocation}
+          disabled={locating}
+          title="내 위치로"
+          aria-label="내 위치로"
+          className="absolute bottom-3 right-3 z-[5] flex size-9 items-center justify-center rounded-full border border-line bg-surface text-muted shadow-md transition-colors hover:text-brand disabled:opacity-60"
+        >
+          <GpsIcon spinning={locating} />
+        </button>
+      )}
+      {geoError && (
+        <p role="status" className="absolute inset-x-3 bottom-14 z-[5] rounded-md border border-line bg-surface px-3 py-2 text-center text-xs text-danger shadow-md">
+          {geoError}
+        </p>
+      )}
       {onToggleExpand && (
         <button
           type="button"
@@ -196,10 +265,30 @@ export function NoticeMap({
   );
 }
 
+function GpsIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={`size-[18px] ${spinning ? 'animate-spin' : ''}`} aria-hidden="true">
+      <circle cx="12" cy="12" r="3.5" />
+      <circle cx="12" cy="12" r="8" strokeDasharray="4 3" />
+      <path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3" />
+    </svg>
+  );
+}
+
 // XSS 방지: 공고 제목·단지명은 외부 데이터라 innerHTML 대신 textContent로 조립
+/**
+ * 말풍선 + 꼭지. 루트 아래 17px을 비워 두고(yAnchor 1 → 루트 아래끝이 마커 중심) 꼭지 끝이 마커 점(반지름 ~8px) 가장자리에 닿게 한다.
+ * 꼭지는 45° 돌린 정사각형. 위쪽 절반은 카드 안에 들어가 카드 아래 테두리를 덮고, 아래쪽 두 변만 테두리를 그린다
+ */
 function buildBubble(m: MapMarker): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'relative pb-[17px]';
   const root = document.createElement('div');
   root.className = 'rounded-lg border border-line bg-surface px-3 py-2 text-xs shadow-md max-w-60';
+  wrap.appendChild(root);
+  const tail = document.createElement('div');
+  tail.className = 'absolute bottom-[11px] left-1/2 size-3 -translate-x-1/2 rotate-45 border-b border-r border-line bg-surface';
+  wrap.appendChild(tail);
   const name = document.createElement('p');
   name.className = 'font-semibold truncate';
   name.textContent = m.name;
@@ -240,5 +329,5 @@ function buildBubble(m: MapMarker): HTMLElement {
     a.textContent = '원문 공고 ↗';
     root.appendChild(a);
   }
-  return root;
+  return wrap;
 }
