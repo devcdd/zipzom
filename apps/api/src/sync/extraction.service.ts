@@ -179,11 +179,12 @@ export class ExtractionService {
     // 검수 화면에서 같은 코드를 여러 줄로 두고 승인해도 (공고, code) 키에 맞게 합친다
     const houses = mergeHouseGroups(rawHouses);
     const eligibility = mergeEligibilityByCode(rawEligibility);
-    const n = await this.db.one<{ source: string }>(
-      `select n.source from notice_extractions e join notices n on n.id = e.notice_id where e.notice_id = $1`,
+    // 추출 행이 없어도 승인할 수 있다 — LLM을 안 거치고 어드민이 공고문을 직접 읽어 넣는 경로
+    const n = await this.db.one<{ source: string; detail_url: string | null }>(
+      `select source, detail_url from notices where id = $1`,
       [noticeId],
     );
-    if (!n) throw new NotFoundException(`extraction for notice ${noticeId} not found`);
+    if (!n) throw new NotFoundException(`notice ${noticeId} not found`);
     const groupsOf = (h: ExtractedHouse) => h.groups.filter((g) => (g.supplyCount ?? 1) > 0).map((g) => g.code);
     await this.db.tx(async (q) => {
       if (n.source === 'SH') {
@@ -216,11 +217,13 @@ export class ExtractionService {
           [noticeId, e.code, e.label, e.ageMin, e.ageMax, e.incomePct, e.dualIncomePct, e.assetLimit, e.carLimit, e.exempt, e.conditions],
         );
       }
-      await q(`update notice_extractions set status = 'APPROVED', houses = $2, eligibility = $3, reviewed_at = now() where notice_id = $1`, [
-        noticeId,
-        JSON.stringify(houses),
-        JSON.stringify(eligibility),
-      ]);
+      await q(
+        `insert into notice_extractions (notice_id, pdf_url, model, status, houses, eligibility, error, reviewed_at)
+         values ($1, $4, 'manual', 'APPROVED', $2, $3, null, now())
+         on conflict (notice_id) do update set status = 'APPROVED', houses = excluded.houses,
+           eligibility = excluded.eligibility, error = null, reviewed_at = now()`,
+        [noticeId, JSON.stringify(houses), JSON.stringify(eligibility), n.detail_url ?? ''],
+      );
     });
   }
 
