@@ -19,7 +19,10 @@ const listUrl = (page: number) => {
 /** 게시글 상세. 목록의 getDetailView는 폼 POST지만 seq를 GET으로 붙여도 같은 페이지가 나온다. */
 export const shViewUrl = (seq: string) => new URL(`view.do?seq=${seq}`, process.env.SH_LIST_URL!).toString();
 
-const stripTags = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+// 옛 공고 본문에 NUL이 섞여 있다. jsonb·text 어디에 넣어도 Postgres가 22P05로 거부한다
+// oxlint-disable-next-line no-control-regex
+const squash = (s: string) => s.replace(/[\u0000-\u001f]/g, ' ').replace(/\s+/g, ' ').trim();
+const stripTags = (html: string) => squash(html.replace(/<[^>]+>/g, ' '));
 
 /** 목록 한 페이지의 글 행. 검색 폼에도 <tr>이 있어 getDetailView가 있는 행만 본다. */
 export function parseShList(html: string): ShListRow[] {
@@ -110,7 +113,7 @@ export function shBodyText(raw: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&amp;/g, '&');
   s = s.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&[a-z]+;/g, ' ');
-  return s.replace(/\s+/g, ' ').trim();
+  return squash(s);
 }
 
 /**

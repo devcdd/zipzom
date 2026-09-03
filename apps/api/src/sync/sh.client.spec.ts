@@ -1,4 +1,4 @@
-import { parseShAttachments, parseShLastPage, parseShList, parseShNotice, pickShNoticePdf, shDetailBody, shSupplyType } from './sh.client.js';
+import { parseShAttachments, parseShLastPage, parseShList, parseShNotice, pickShNoticePdf, shBodyText, shDetailBody, shSupplyType } from './sh.client.js';
 
 // 2026년 2차 행복주택 공고(seq 309337) 본문 실물 축약
 const BODY = [
@@ -32,6 +32,12 @@ describe('parseShNotice', () => {
 
   it('못 찾으면 null', () => {
     expect(parseShNotice('안내문입니다')).toEqual({ applyBeginOn: null, applyEndOn: null, winnerAnnounceOn: null, supplyCount: null });
+  });
+});
+
+describe('shBodyText', () => {
+  it('제어문자를 지운다 — 옛 공고 본문의 NUL이 남으면 jsonb 저장이 22P05로 터진다', () => {
+    expect(shBodyText('바로가기(금융결제원 홈페이지) \u0000 안내')).toBe('바로가기(금융결제원 홈페이지) 안내');
   });
 });
 
