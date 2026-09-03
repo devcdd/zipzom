@@ -48,11 +48,12 @@ export function NoticeCard({
     document.getElementById(`house-${selectedHouseId}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedHouseId]);
 
+  // min-w-0: 그리드 아이템의 min-width:auto 탓에 긴 공고명이 카드를 늘려 모바일에서 가로가 넘친다
   return (
     <article
       id={`notice-${n.id}`}
       aria-current={selected ? 'true' : undefined}
-      className={`card flex flex-col gap-3 p-5 scroll-mt-20 transition-colors ${selected ? 'card-selected' : ''}`}
+      className={`card flex min-w-0 flex-col gap-3 p-5 scroll-mt-20 transition-colors ${selected ? 'card-selected' : ''}`}
     >
       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
         <Tag tone="ink">{n.institution ?? n.source}</Tag>
