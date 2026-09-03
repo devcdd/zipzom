@@ -153,8 +153,9 @@ export class SyncService implements OnModuleInit {
     const seen = new Set(
       (await this.db.query<{ source_id: string }>(`select source_id from notices where source = 'SH'`)).map((r) => r.source_id),
     );
-    // 최근 글은 본문이 정정되기도 해서 이미 받은 것도 다시 읽는다
-    const recheckFrom = new Date(Date.now() - 30 * DAY).toISOString().slice(0, 10);
+    // 최근 글은 본문이 정정되기도 해서 이미 받은 것도 다시 읽는다.
+    // 접수기간이 안 뽑힌 공고는 '공고일 +45일'까지 모집 중으로 표시되므로(notices.service), 그 구간은 계속 최신으로 유지한다
+    const recheckFrom = new Date(Date.now() - 45 * DAY).toISOString().slice(0, 10);
     let fetched = 0;
     let notices = 0;
     let backfilling = true;
