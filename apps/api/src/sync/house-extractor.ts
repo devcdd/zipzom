@@ -36,6 +36,36 @@ export const extractedEligibilitySchema = z.object({
 });
 export type ExtractedEligibility = z.infer<typeof extractedEligibilitySchema>;
 
+/**
+ * 모델이 대학생/취업준비생, 청년/사회초년생, 신혼/예비신혼/한부모를 따로 뽑는 일이 잦다. 저장 키는 (공고, code)라
+ * 그대로 두면 마지막 항목이 앞을 덮어써 값(예: 신혼 맞벌이 %)이 사라진다. 코드별로 합친다: 라벨은 이어 붙이고,
+ * 숫자는 비어 있지 않은 첫 값, 배제·조건은 합집합
+ */
+export function mergeEligibilityByCode(list: ExtractedEligibility[]): ExtractedEligibility[] {
+  const out = new Map<GroupCode, ExtractedEligibility>();
+  for (const e of list) {
+    const m = out.get(e.code);
+    if (!m) {
+      out.set(e.code, { ...e, exempt: [...e.exempt], conditions: [...e.conditions] });
+      continue;
+    }
+    if (e.label && !m.label.split('·').includes(e.label)) m.label = `${m.label}·${e.label}`;
+    for (const k of ['ageMin', 'ageMax', 'incomePct', 'dualIncomePct', 'assetLimit', 'carLimit'] as const) m[k] ??= e[k];
+    m.exempt = [...new Set([...m.exempt, ...e.exempt])];
+    m.conditions = [...new Set([...m.conditions, ...e.conditions])].slice(0, 8);
+  }
+  return [...out.values()];
+}
+
+/** 단지별 배정도 같은 코드가 여러 번 오면 호수를 합산 */
+export function mergeHouseGroups(houses: ExtractedHouse[]): ExtractedHouse[] {
+  return houses.map((h) => {
+    const g = new Map<GroupCode, number | null>();
+    for (const x of h.groups) g.set(x.code, g.has(x.code) ? (g.get(x.code) == null && x.supplyCount == null ? null : (g.get(x.code) ?? 0) + (x.supplyCount ?? 0)) : x.supplyCount);
+    return { ...h, groups: [...g].map(([code, supplyCount]) => ({ code, supplyCount })) };
+  });
+}
+
 export interface ExtractionResult {
   houses: ExtractedHouse[];
   eligibility: ExtractedEligibility[];
@@ -96,7 +126,8 @@ const jsonSchema = (withHouseDetail: boolean) => ({
 });
 
 const GROUP_GUIDE = `계층 code 매핑: 대학생·취업준비생→STUDENT, 청년·사회초년생→YOUTH, 신혼부부·예비신혼부부·한부모(신혼부부와 묶여 있으면)→NEWLYWED,
-한부모가족 단독 계층→SINGLE_PARENT, 고령자→SENIOR, 주거급여수급자→HOUSING_BENEFIT, 산업단지근로자→INDUSTRIAL, 그 외→OTHER.`;
+한부모가족 단독 계층→SINGLE_PARENT, 고령자→SENIOR, 주거급여수급자→HOUSING_BENEFIT, 산업단지근로자→INDUSTRIAL, 그 외→OTHER.
+code마다 항목은 하나만: 같은 code에 속하는 세부 계층(대학생·취업준비생, 청년·사회초년생, 신혼부부·예비신혼부부·한부모가족)은 한 항목으로 합치고 label을 '·'로 이어라.`;
 
 const prompt = (withHouseDetail: boolean) => `이 행복주택 입주자 모집공고문에서 두 가지를 추출해.
 
@@ -179,10 +210,12 @@ export async function extractFromPdf(pdf: Uint8Array, filename: string, opts: { 
   if (!text) throw new Error(`openai empty output (status ${json.status})`);
   const parsed = z.object({ houses: z.array(extractedHouseSchema), eligibility: z.array(extractedEligibilitySchema) }).parse(JSON.parse(text));
   // 자산·자동차는 만원으로 받아 원으로 저장. 모델이 단위를 흔들어서(3450 / 345000000 혼용) 만원 고정이 더 안정적
-  const eligibility = parsed.eligibility.map((e) => ({
-    ...e,
-    assetLimit: e.assetLimit == null ? null : e.assetLimit * 10_000,
-    carLimit: e.carLimit == null ? null : e.carLimit * 10_000,
-  }));
-  return { houses: parsed.houses, eligibility, usage: json.usage ?? null };
+  const eligibility = mergeEligibilityByCode(
+    parsed.eligibility.map((e) => ({
+      ...e,
+      assetLimit: e.assetLimit == null ? null : e.assetLimit * 10_000,
+      carLimit: e.carLimit == null ? null : e.carLimit * 10_000,
+    })),
+  );
+  return { houses: mergeHouseGroups(parsed.houses), eligibility, usage: json.usage ?? null };
 }

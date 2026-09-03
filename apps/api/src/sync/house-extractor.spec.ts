@@ -1,4 +1,4 @@
-import { extractFromPdf, retryAfterMs } from './house-extractor.js';
+import { mergeEligibilityByCode, mergeHouseGroups, extractFromPdf, retryAfterMs } from './house-extractor.js';
 
 const ok = {
   status: 'completed',
@@ -49,5 +49,22 @@ describe('extractFromPdf 429 재시도', () => {
     await vi.advanceTimersByTimeAsync(3_000);
     await assertion;
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('mergeEligibilityByCode', () => {
+  const base = { ageMin: null, ageMax: null, incomePct: 100, dualIncomePct: null, assetLimit: 345_000_000, carLimit: 45_420_000, exempt: [] as string[], conditions: [] as string[] };
+  it('같은 코드는 하나로: 라벨 이어붙이고 비어 있지 않은 값 우선, 조건 합집합', () => {
+    const r = mergeEligibilityByCode([
+      { ...base, code: 'NEWLYWED', label: '신혼부부', dualIncomePct: 120, conditions: ['혼인 7년 이내'] },
+      { ...base, code: 'NEWLYWED', label: '한부모가족', dualIncomePct: null, conditions: ['6세 이하 자녀'], exempt: ['asset'] },
+      { ...base, code: 'SENIOR', label: '고령자', ageMin: 65 },
+    ] as never);
+    expect(r).toHaveLength(2);
+    expect(r[0]).toMatchObject({ code: 'NEWLYWED', label: '신혼부부·한부모가족', dualIncomePct: 120, exempt: ['asset'], conditions: ['혼인 7년 이내', '6세 이하 자녀'] });
+  });
+  it('단지 배정도 코드별 합산', () => {
+    const [h] = mergeHouseGroups([{ name: 'A', address: null, supplyCount: 8, totalHouseholds: null, minDeposit: null, minMonthlyRent: null, areaMin: null, areaMax: null, groups: [{ code: 'YOUTH', supplyCount: 5 }, { code: 'YOUTH', supplyCount: 3 }, { code: 'SENIOR', supplyCount: null }] }]);
+    expect(h.groups).toEqual([{ code: 'YOUTH', supplyCount: 8 }, { code: 'SENIOR', supplyCount: null }]);
   });
 });

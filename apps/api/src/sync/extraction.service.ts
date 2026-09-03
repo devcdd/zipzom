@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Db } from '../db.js';
-import { extractFromPdf, type ExtractedEligibility, type ExtractedHouse } from './house-extractor.js';
+import { extractFromPdf, mergeEligibilityByCode, mergeHouseGroups, type ExtractedEligibility, type ExtractedHouse } from './house-extractor.js';
 import { fetchLhFiles, parseLhParams, pickLhNoticePdf, type LhPanKey } from './lh.client.js';
 
 // 행복주택 계열 공급정보 유형 코드. 상세 API는 이 중 하나면 응답한다
@@ -28,6 +28,7 @@ interface PdfRef {
   url: string;
   name: string;
   body?: string; // 있으면 POST 폼 (마이홈 다운로드)
+  pageUrl?: string; // 검수 카드에 보여줄 링크. POST 전용 URL은 브라우저에서 못 여니 페이지로
 }
 
 @Injectable()
@@ -71,7 +72,7 @@ export class ExtractionService {
          values ($1, $2, $3, $4, 'PENDING', $5, $6, $7, null, now(), null)
          on conflict (notice_id) do update set pdf_url = excluded.pdf_url, pdf_name = excluded.pdf_name, model = excluded.model,
            status = 'PENDING', houses = excluded.houses, eligibility = excluded.eligibility, usage = excluded.usage, error = null, created_at = now(), reviewed_at = null`,
-        [noticeId, pdf.url, pdf.name, process.env.OPENAI_MODEL || 'gpt-5.6-luna', JSON.stringify(houses), JSON.stringify(eligibility), JSON.stringify(usage)],
+        [noticeId, pdf.pageUrl ?? pdf.url, pdf.name, process.env.OPENAI_MODEL || 'gpt-5.6-luna', JSON.stringify(houses), JSON.stringify(eligibility), JSON.stringify(usage)],
       );
       this.log.log(`extracted notice ${noticeId}: ${houses.length} houses, ${eligibility.length} groups`);
     } catch (e) {
@@ -81,7 +82,7 @@ export class ExtractionService {
         `insert into notice_extractions (notice_id, pdf_url, pdf_name, status, error)
          values ($1, $2, $3, 'FAILED', $4)
          on conflict (notice_id) do update set status = 'FAILED', error = excluded.error, created_at = now()`,
-        [noticeId, pdf?.url ?? n.detail_url ?? '', pdf?.name ?? null, error],
+        [noticeId, pdf?.pageUrl ?? pdf?.url ?? n.detail_url ?? '', pdf?.name ?? null, error],
       );
     }
   }
@@ -106,7 +107,7 @@ export class ExtractionService {
 
   private async myhomePdf(pcUrl: string): Promise<PdfRef | undefined> {
     const f = pickMyhomeNoticePdf(await fetchMyhomeAttachments(pcUrl));
-    return f && { url: MYHOME_FILE_DOWNLOAD_URL, name: f.name, body: new URLSearchParams({ atchFileId: f.atchFileId, fileSn: f.fileSn }).toString() };
+    return f && { url: MYHOME_FILE_DOWNLOAD_URL, name: f.name, body: new URLSearchParams({ atchFileId: f.atchFileId, fileSn: f.fileSn }).toString(), pageUrl: pcUrl };
   }
 
   private async shPdf(viewUrl: string | null): Promise<PdfRef | undefined> {
@@ -153,7 +154,10 @@ export class ExtractionService {
    * 검수된 값 반영. 자격 기준은 notice_eligibility로 교체.
    * 단지: SH는 notice_houses를 통째로 교체(플레이스홀더 제거), 그 외는 마이홈 단지가 이미 있으니 이름으로 맞춰 eligible_groups만 채운다.
    */
-  async approve(noticeId: number, houses: ExtractedHouse[], eligibility: ExtractedEligibility[]) {
+  async approve(noticeId: number, rawHouses: ExtractedHouse[], rawEligibility: ExtractedEligibility[]) {
+    // 검수 화면에서 같은 코드를 여러 줄로 두고 승인해도 (공고, code) 키에 맞게 합친다
+    const houses = mergeHouseGroups(rawHouses);
+    const eligibility = mergeEligibilityByCode(rawEligibility);
     const n = await this.db.one<{ source: string }>(
       `select n.source from notice_extractions e join notices n on n.id = e.notice_id where e.notice_id = $1`,
       [noticeId],
@@ -212,6 +216,8 @@ export class ExtractionService {
     const rows = await this.db.query<{ id: number }>(
       `select n.id from notices n
        where n.source in ('MYHOME', 'LH') and n.supply_type = '행복주택' and n.duplicate_of is null
+         -- 정정공고가 가리키는 이전 공고는 목록에서도 숨기므로 추출하지 않는다
+         and not exists (select 1 from notices n2 where n2.source = n.source and n2.raw->>'beforePblancId' = n.source_id)
          and coalesce(n.apply_end_on, n.posted_on + 45) >= current_date
          and not exists (select 1 from notice_extractions e where e.notice_id = n.id)
        order by n.posted_on desc limit $1`,
