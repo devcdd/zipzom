@@ -15,18 +15,19 @@ export function NoticeFeed({ regions }: { regions?: Region[] }) {
   const { me, loading: sessionLoading } = useSession();
   const bookmarks = useBookmarks(sessionLoading ? undefined : !!me);
   const { focus, selectedId, selectedHouseId, showOnMap, selectFromMap } = useNoticeSelection();
-  const { regions: picked } = filters;
+  const { regions: picked, supplyTypes } = filters;
   const q = useDebounce(filters.q.trim(), 300);
   const { data, loading, error } = useAsync(
     () =>
       noticeApi.list({
         phase: phaseParam(filters.phase),
+        supplyTypes: supplyTypes.length > 0 ? supplyTypes : undefined,
         sido: picked.filter(isSidoCode).map((c) => c.slice(0, 2)),
         sigungu: picked.filter((c) => !isSidoCode(c)),
         q: q || undefined,
         limit: 100,
       }),
-    [filters.phase, picked, q],
+    [filters.phase, picked, supplyTypes, q],
   );
 
   const ordered = data ? [...data.items].sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId)) : [];
