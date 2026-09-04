@@ -1,13 +1,17 @@
 import { useRef } from 'react';
-import { noticeApi } from '@/entities/notice';
+import { noticeApi, type SupplyTypeCount } from '@/entities/notice';
 import { useAsync } from '@/shared/lib';
 
 const summary = (value: string[]) => (value.length === 0 ? '전체 유형' : value.length === 1 ? value[0] : `${value[0]} 외 ${value.length - 1}`);
 
-/** 공급유형 다중 선택. 선택지는 수집된 값 그대로(/notices/supply-types) */
-export function SupplyTypePicker({ value, onChange }: { value: string[]; onChange: (types: string[]) => void }) {
+/**
+  * 공급유형 다중 선택. 선택지는 기본적으로 수집된 값 전체(/notices/supply-types).
+  * options를 주면 그것만 쓴다 — 내 매칭처럼 결과에 있는 유형만 보여야 하는 화면용
+  */
+export function SupplyTypePicker({ value, options, onChange }: { value: string[]; options?: SupplyTypeCount[]; onChange: (types: string[]) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const types = useAsync(() => noticeApi.supplyTypes(), []);
+  const fetched = useAsync(() => (options ? Promise.resolve(options) : noticeApi.supplyTypes()), [options]);
+  const types = options ?? fetched.data ?? [];
   const toggle = (t: string) => onChange(value.includes(t) ? value.filter((x) => x !== t) : [...value, t]);
 
   return (
@@ -33,7 +37,7 @@ export function SupplyTypePicker({ value, onChange }: { value: string[]; onChang
             전체 유형
           </label>
           <div className="grid grid-cols-2 gap-x-3 gap-y-1 pl-6 sm:grid-cols-3">
-            {(types.data ?? []).map((t) => (
+            {types.map((t) => (
               <label key={t.supplyType} className="flex items-center gap-2 text-muted has-checked:text-ink">
                 <input type="checkbox" checked={value.includes(t.supplyType)} onChange={() => toggle(t.supplyType)} />
                 <span className="truncate">{t.supplyType}</span>
