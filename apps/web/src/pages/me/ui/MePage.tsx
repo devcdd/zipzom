@@ -37,7 +37,7 @@ export function MePage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div>
-        <h1 className="text-lg font-semibold">마이페이지</h1>
+        <h1 className="page-title">마이페이지</h1>
         <p className="text-xs text-muted">{me.email}</p>
       </div>
       <nav className="flex gap-1 border-b border-line text-sm">

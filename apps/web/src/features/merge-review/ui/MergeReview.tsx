@@ -32,19 +32,19 @@ export function MergeReview() {
         <ul className="grid gap-2">
           {pairs.data?.map((p) => (
             <li key={p.id} className="card grid gap-2 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
-              <div className="min-w-0 text-[13px]">
+              <div className="min-w-0 text-sm">
                 <div className="flex items-center gap-1.5">
                   <Tag tone="ink">{p.canonicalSource}</Tag>
                   <span className="truncate font-medium">{p.canonicalTitle}</span>
-                  <span className="shrink-0 text-[11px] text-muted">
+                  <span className="shrink-0 text-2xs text-muted">
                     {p.canonicalPostedOn ?? '—'} · 단지 {p.canonicalHouseCount}
                   </span>
                 </div>
                 <div className="mt-1 flex items-center gap-1.5 text-muted">
-                  <span className="shrink-0 text-[11px]">숨김</span>
+                  <span className="shrink-0 text-2xs">숨김</span>
                   <Tag>{p.source}</Tag>
                   <span className="truncate line-through decoration-line">{p.title}</span>
-                  <span className="shrink-0 text-[11px]">{p.postedOn ?? '—'}</span>
+                  <span className="shrink-0 text-2xs">{p.postedOn ?? '—'}</span>
                   {p.detailUrl && (
                     <a href={p.detailUrl} target="_blank" rel="noreferrer" className="shrink-0 text-brand hover:underline">
                       원문 ↗

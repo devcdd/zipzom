@@ -29,7 +29,7 @@ export function ProfilePage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div>
-        <h1 className="text-lg font-semibold">내 주거 조건</h1>
+        <h1 className="page-title">내 주거 조건</h1>
         <p className="text-sm text-muted">
           입주 자격 계층 판정에 쓰이는 항목만 물어요.{' '}
           {me ? (

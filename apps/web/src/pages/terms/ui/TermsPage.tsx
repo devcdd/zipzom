@@ -7,7 +7,7 @@ export function TermsPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
-        <h1 className="text-lg font-semibold">위치정보 이용약관</h1>
+        <h1 className="page-title">위치정보 이용약관</h1>
         <p className="mt-1 text-xs text-muted">최종 개정일 {UPDATED}</p>
       </div>
 

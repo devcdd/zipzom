@@ -67,7 +67,7 @@ export function NoticeCard({
         <NoticeTimeline notice={n} />
       </div>
       <div className="flex items-start gap-2">
-        <h3 className={`min-w-0 flex-1 text-[15px] leading-snug text-balance ${selected ? 'font-bold text-brand' : 'font-semibold'}`}>
+        <h3 className={`min-w-0 flex-1 text-lg leading-snug text-balance ${selected ? 'font-bold text-brand' : 'font-semibold'}`}>
           {n.detailUrl ? (
             <a href={n.detailUrl} target="_blank" rel="noreferrer" className="hover:underline">
               {n.title}
@@ -102,7 +102,7 @@ export function NoticeCard({
       </div>
       {houses.length > 0 && (
         // 단지가 많은 공고(SH는 60곳 넘음)도 카드 높이를 고정해 지도와 나란히 볼 수 있게. 4행 남짓 보이고 나머지는 안에서 스크롤
-        <ul className="max-h-72 divide-y divide-line overflow-y-auto overscroll-contain border-y border-line text-[13px]">
+        <ul className="max-h-72 divide-y divide-line overflow-y-auto overscroll-contain border-y border-line text-sm">
           {houses.map((h) => (
             <li
               key={h.id}
@@ -115,7 +115,7 @@ export function NoticeCard({
               <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
                 <span className={`font-medium ${selectedHouseId === h.id ? 'text-brand' : ''}`}>{h.name ?? h.address}</span>
                 {h.eligibleGroups?.map((g) => (
-                  <span key={g} className={`rounded px-1 text-[10px] leading-4 ${hit.has(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`}>
+                  <span key={g} className={`rounded px-1 text-2xs leading-4 ${hit.has(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`}>
                     {groupLabel(g)}
                   </span>
                 ))}
@@ -169,7 +169,7 @@ export function NoticeCard({
                     ))}
                   </ul>
                 )}
-                <p className="text-[11px]">공고문 기준 요약. 최종 자격은 원문으로 확인하세요.</p>
+                <p className="text-2xs">공고문 기준 요약. 최종 자격은 원문으로 확인하세요.</p>
               </div>
             );
           })()}

@@ -8,7 +8,7 @@ export function EligibilitySummary({ evaluations }: { evaluations: Evaluation[] 
   const detail = evaluations.find((e) => e.code === open);
 
   return (
-    <section className="card p-5">
+    <section className="card-raised p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold">
           {passed.length > 0 ? (
@@ -39,7 +39,7 @@ export function EligibilitySummary({ evaluations }: { evaluations: Evaluation[] 
         ))}
       </div>
       {detail && (
-        <ul className="mt-3 grid gap-1 text-[13px] sm:grid-cols-2">
+        <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
           {detail.checks.map((c) => (
             <li key={c.label} className="flex items-start gap-2">
               <span className={`mt-0.5 font-mono text-xs ${c.ok ? 'text-brand' : 'text-danger'}`}>{c.ok ? '✓' : '✗'}</span>
@@ -50,7 +50,7 @@ export function EligibilitySummary({ evaluations }: { evaluations: Evaluation[] 
           ))}
         </ul>
       )}
-      <p className="mt-3 text-[11px] text-muted">공고별 우선공급·거주 요건은 반영되지 않아요. 최종 자격은 원문 공고문으로 확인하세요.</p>
+      <p className="mt-3 text-2xs text-muted">공고별 우선공급·거주 요건은 반영되지 않아요. 최종 자격은 원문 공고문으로 확인하세요.</p>
     </section>
   );
 }

@@ -10,7 +10,7 @@ const PROFILE_FIELDS =
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid gap-1 border-t border-line py-2 sm:grid-cols-[7rem_1fr] sm:gap-3">
-      <dt className="text-[12px] font-medium text-ink">{label}</dt>
+      <dt className="text-xs font-medium text-ink">{label}</dt>
       <dd>{children}</dd>
     </div>
   );
@@ -21,7 +21,7 @@ export function PrivacyPage() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <div>
-        <h1 className="text-lg font-semibold">개인정보 처리방침</h1>
+        <h1 className="page-title">개인정보 처리방침</h1>
         <p className="mt-1 text-xs text-muted">최종 개정일 {UPDATED}</p>
       </div>
 
@@ -36,7 +36,7 @@ export function PrivacyPage() {
         </LegalSection>
 
         <LegalSection title="2. 수집하는 개인정보 항목과 수집 방법">
-          <dl className="flex flex-col text-[13px]">
+          <dl className="flex flex-col text-sm">
             <Row label="카카오 로그인">
               카카오계정 이메일(필수 동의), 프로필 닉네임, 카카오 회원번호. 이용자가 카카오 로그인 화면에서 동의한 경우에만 카카오로부터 전달받습니다.
             </Row>
@@ -87,7 +87,7 @@ export function PrivacyPage() {
 
         <LegalSection title="7. 개인정보 처리의 위탁">
           <p>서비스 제공에 필요한 범위에서 다음 업무를 위탁하고 있습니다.</p>
-          <dl className="flex flex-col text-[13px]">
+          <dl className="flex flex-col text-sm">
             <Row label="카카오">소셜 로그인 인증, 지도 표시. 로그인 과정에서 카카오가 이용자 동의를 받아 이메일과 닉네임을 전달합니다.</Row>
             <Row label="Amazon Web Services">서비스 서버와 데이터베이스 운영(국내 리전).</Row>
           </dl>

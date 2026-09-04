@@ -43,7 +43,7 @@ export function HomePage() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-lg font-semibold">LH · SH · HUG · 마이홈 공고</h1>
+        <h1 className="page-title">LH · SH · HUG · 마이홈 공고</h1>
         <div role="radiogroup" className="inline-flex rounded-md border border-line bg-surface p-0.5 text-sm">
           {(
             [

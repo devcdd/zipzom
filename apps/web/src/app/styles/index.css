@@ -2,41 +2,84 @@
 
 @theme {
   --font-sans: "Pretendard Variable", Pretendard, system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
-  --color-ground: #f5f7f4;
+
+  /* 배경은 흰색이 아니라 아주 옅은 초록. 카드(흰색)가 떠 보이게 하는 대비의 근거 */
+  --color-ground: #f4f7f5;
   --color-surface: #ffffff;
-  --color-surface-2: #eef2ee;
-  --color-ink: #17201c;
-  --color-muted: #5f6b66;
-  --color-line: #d9e0db;
+  --color-surface-2: #eef2ef;
+  --color-ink: #131b17;
+  --color-muted: #5c6a64;
+  /* 테두리를 두 단계로. 기본은 더 옅게 써서 화면에서 선이 덜 보이게 */
+  --color-line: #e2e8e4;
+  --color-line-strong: #cbd5cf;
   --color-brand: #1e7a5b;
+  --color-brand-hover: #186549;
   --color-brand-soft: #dff0e7;
+  --color-brand-ink: #12513c;
   --color-warn: #b45309;
   --color-warn-soft: #fdecd2;
   --color-danger: #b42318;
   --color-danger-soft: #fee4e2;
+
+  /* 본문은 15px 하나로 모으고 위아래로만 벌린다. 기존엔 11~14px에 92%가 몰려 위계가 없었다 */
+  --text-2xs: 0.6875rem;   /* 11px 배지·각주 */
+  --text-xs: 0.75rem;      /* 12px 보조 */
+  --text-sm: 0.8125rem;    /* 13px 조밀한 목록 */
+  --text-base: 0.9375rem;  /* 15px 본문 */
+  --text-lg: 1.0625rem;    /* 17px 카드 제목 */
+  --text-xl: 1.375rem;     /* 22px 섹션 제목 */
+  --text-2xl: 1.75rem;     /* 28px 페이지 제목 */
+
+  /* 그림자는 초록 계열로 살짝 물들여야 회색 템플릿 느낌이 빠진다 */
+  --shadow-card: 0 1px 2px rgb(19 27 23 / 0.04), 0 1px 3px rgb(19 27 23 / 0.06);
+  --shadow-raised: 0 2px 4px rgb(19 27 23 / 0.05), 0 8px 20px -6px rgb(19 27 23 / 0.12);
+  --shadow-float: 0 4px 8px rgb(19 27 23 / 0.06), 0 16px 40px -12px rgb(19 27 23 / 0.2);
 }
 
 html { color-scheme: light; }
 body { @apply bg-ground text-ink antialiased; font-variant-numeric: tabular-nums; }
 
+/* 제목은 자간을 좁혀야 한글에서 덩어리로 읽힌다 */
+h1, h2, h3 { letter-spacing: -0.02em; }
+
 /* Tailwind 4는 같은 파일의 커스텀 클래스를 @apply 못 하므로 공통 스타일은 셀렉터 묶음으로 */
-.btn, .btn-primary, .btn-ghost { @apply inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
-.btn-primary { @apply bg-brand text-white hover:bg-[#186549]; }
-.btn-ghost { @apply border border-line bg-surface text-ink hover:bg-surface-2; }
+
+/* ── 타이포 ───────────────────────────────────────── */
+.page-title { @apply text-2xl font-bold text-ink; }
+.section-title { @apply text-lg font-semibold text-ink; }
+.eyebrow { @apply text-2xs font-semibold uppercase tracking-wider text-muted; }
+
+/* ── 버튼 ─────────────────────────────────────────── */
+/* 버튼은 본문 스케일(13px)을 따르면 눌러야 할 대상치고 작다. 14px로 고정 */
+.btn, .btn-primary, .btn-ghost, .btn-soft { @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed; font-size: 0.875rem; }
+.btn-primary { @apply bg-brand text-white shadow-card hover:bg-brand-hover; }
+.btn-ghost { @apply border border-line-strong bg-surface text-ink hover:bg-surface-2; }
+.btn-soft { @apply bg-brand-soft text-brand-ink hover:bg-brand-soft/70; }
+
+/* ── 입력 ─────────────────────────────────────────── */
 /* iOS Safari는 폰트가 16px 미만인 입력에 포커스하면 화면을 확대한다. 기본을 16px로 두고
    포인터가 정밀한 환경(마우스)에서만 14px로 줄인다 — 확대는 터치 기기에서만 일어나므로 */
 .field {
-  @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-brand/40;
+  @apply w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-ink transition-colors;
+  @apply placeholder:text-muted/60 focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/25;
   font-size: 16px;
 }
 @media (pointer: fine) {
   .field { font-size: 0.875rem; }
 }
-.label { @apply block text-xs font-medium text-muted mb-1.5; }
-.tag { @apply inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap; }
-.card { @apply rounded-xl border border-line bg-surface; }
+.label { @apply mb-1.5 block text-xs font-semibold text-muted; }
+
+/* ── 표면 ─────────────────────────────────────────── */
+/* 목록용: 테두리만. 화면에 여러 개가 늘어서므로 그림자를 주면 지저분해진다 */
+.card { @apply rounded-xl border border-line bg-surface shadow-card; }
+/* 강조용: 테두리 없이 그림자로 띄운다 (요약·모달 등 화면에 하나뿐인 덩어리) */
+.card-raised { @apply rounded-2xl bg-surface shadow-raised; }
 /* .card와 같은 레이어여야 bg-surface를 덮는다. 유틸리티 클래스로 넘기면 레이어 우선순위에 밀림 */
-.card-selected { @apply border-brand/40 bg-brand-soft/30; }
+.card-selected { @apply border-brand/50 bg-brand-soft/30 shadow-raised; }
+
+/* ── 배지 ─────────────────────────────────────────── */
+.tag { @apply inline-flex items-center rounded-md px-1.5 py-0.5 text-2xs font-semibold leading-4 whitespace-nowrap; }
+
 /* 지도에서 고른 단지 행: 위아래 구분선만 초록으로. inset shadow라 레이아웃 안 밀림 */
 /* 카드 p-5 여백까지 배경이 차도록 음수 마진으로 빼고 같은 만큼 안쪽 패딩 */
 .house-selected { @apply -mx-5 bg-brand-soft/50 px-5 shadow-[inset_0_1px_0_0_var(--color-brand),inset_0_-1px_0_0_var(--color-brand)]; }

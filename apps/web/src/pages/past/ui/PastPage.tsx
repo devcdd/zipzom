@@ -33,7 +33,7 @@ export function PastPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
-          <h1 className="text-lg font-semibold">지난 공고</h1>
+          <h1 className="page-title">지난 공고</h1>
           <p className="text-xs text-muted">접수가 끝난 공고를 최근 것부터 보여줘요.</p>
         </div>
         <a href="#/" className="text-xs text-brand hover:underline">

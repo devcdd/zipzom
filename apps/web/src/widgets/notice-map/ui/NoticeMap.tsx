@@ -303,7 +303,7 @@ function buildBubble(m: MapMarker): HTMLElement {
     chips.className = 'mt-1 flex flex-wrap gap-1';
     for (const g of m.groups) {
       const c = document.createElement('span');
-      c.className = `rounded px-1 text-[10px] leading-4 ${m.matched.includes(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`;
+      c.className = `rounded px-1 text-2xs leading-4 ${m.matched.includes(g) ? 'bg-brand text-white' : 'bg-surface-2 text-muted'}`;
       c.textContent = groupLabel(g);
       chips.appendChild(c);
     }

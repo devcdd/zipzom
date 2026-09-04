@@ -18,7 +18,7 @@ function Cell({ value }: { value: unknown }) {
   if (typeof value === 'object') {
     const s = JSON.stringify(value);
     return (
-      <span className="font-mono text-[11px] text-muted" title={s}>
+      <span className="font-mono text-2xs text-muted" title={s}>
         {s}
       </span>
     );
@@ -55,7 +55,7 @@ export function DataTable({ page, offset, limit, onPage }: { page: TablePage; of
   return (
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
-        <table className={`table-fixed text-[13px] ${resizing ? 'select-none' : ''}`} style={{ width: total, minWidth: '100%' }}>
+        <table className={`table-fixed text-sm ${resizing ? 'select-none' : ''}`} style={{ width: total, minWidth: '100%' }}>
           <colgroup>
             {page.columns.map((c) => (
               <col key={c.name} style={{ width: widths[c.name] }} />
@@ -67,7 +67,7 @@ export function DataTable({ page, offset, limit, onPage }: { page: TablePage; of
                 <th key={c.name} className="relative overflow-hidden px-3 py-2 font-medium">
                   <div className="truncate" title={`${c.name} · ${c.type}`}>
                     {c.name}
-                    <span className="ml-1 font-mono text-[10px] opacity-60">{c.type}</span>
+                    <span className="ml-1 font-mono text-2xs opacity-60">{c.type}</span>
                   </div>
                   {/* 드래그 리사이즈 핸들 */}
                   <span

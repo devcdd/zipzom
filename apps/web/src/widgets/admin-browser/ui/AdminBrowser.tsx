@@ -27,7 +27,7 @@ export function AdminBrowser() {
     <div className="flex flex-col gap-4">
       {/* 모바일에선 탭이 제목·동기화 아래 한 줄을 통으로 쓴다 */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="text-lg font-semibold">어드민</h1>
+        <h1 className="page-title">어드민</h1>
         <div className="ml-auto flex flex-col items-end gap-1 sm:order-3">
           <SyncButton onDone={refresh} />
           <LastSync refreshKey={tables.data} />

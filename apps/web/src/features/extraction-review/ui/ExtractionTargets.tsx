@@ -175,7 +175,7 @@ function Row({ item, checked, onToggle }: { item: ExtractTarget; checked: boolea
           item.title
         )}
         {/* 접힌 열을 모바일에선 제목 아래 한 줄로 */}
-        <div className="mt-0.5 text-[11px] text-muted sm:hidden">
+        <div className="mt-0.5 text-2xs text-muted sm:hidden">
           {item.source} · {item.supplyType ?? '—'} · {item.postedOn ?? '—'}
         </div>
       </td>

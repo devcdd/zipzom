@@ -12,7 +12,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <label className="block">
       <span className="label">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-[11px] text-muted">{hint}</span>}
+      {hint && <span className="mt-1 block text-2xs text-muted">{hint}</span>}
     </label>
   );
 }
@@ -23,7 +23,7 @@ function Toggle({ label, checked, onChange, hint }: { label: string; checked: bo
       <input type="checkbox" className="mt-0.5 size-4 accent-brand" checked={checked} onChange={(e) => onChange(e.target.checked)} />
       <span>
         {label}
-        {hint && <span className="block text-[11px] text-muted">{hint}</span>}
+        {hint && <span className="block text-2xs text-muted">{hint}</span>}
       </span>
     </label>
   );
@@ -199,7 +199,7 @@ export function ProfileForm({
         </Field>
         <div className="sm:col-span-2">
           <span className="label">관심 지역</span>
-          <p className="mb-2 text-[11px] text-muted">비우면 거주 시도 전체. 숫자는 현재 수집된 단지 수.</p>
+          <p className="mb-2 text-2xs text-muted">비우면 거주 시도 전체. 숫자는 현재 수집된 단지 수.</p>
           {/* 넓으면 [시도 | 구 칩] 2열, 좁으면 시도 위·칩 아래. 라벨을 칩과 같은 줄에 두면 줄바꿈 시 열이 어긋난다 */}
           <div className="divide-y divide-line overflow-hidden rounded-lg border border-line">
             {groups.map((g) => (
@@ -228,7 +228,7 @@ export function ProfileForm({
         </div>
         <div className="sm:col-span-2">
           <span className="label">관심 공급유형</span>
-          <p className="mb-2 text-[11px] text-muted">비우면 전 유형을 봐요. 숫자는 현재 수집된 공고 수. 자격 기준이 아직 없는 유형은 판정 없이 목록에만 올라와요.</p>
+          <p className="mb-2 text-2xs text-muted">비우면 전 유형을 봐요. 숫자는 현재 수집된 공고 수. 자격 기준이 아직 없는 유형은 판정 없이 목록에만 올라와요.</p>
           <div className="flex flex-wrap gap-1.5">
             {(supplyTypes.data ?? []).map((t) => {
               const on = p.preferredSupplyTypes.includes(t.supplyType);
@@ -253,7 +253,7 @@ export function ProfileForm({
           <input type="checkbox" className="mt-0.5 size-4 accent-brand" checked={localOnly} onChange={(e) => setLocalOnly(e.target.checked)} />
           <span>
             서버에 내 정보를 저장하지 않을래요
-            <span className="block text-[11px] text-muted">생년월일만 계정에 남기고 소득·자산 등 나머지 조건은 이 브라우저에만 보관해요. 다른 기기에선 다시 입력해야 해요.</span>
+            <span className="block text-2xs text-muted">생년월일만 계정에 남기고 소득·자산 등 나머지 조건은 이 브라우저에만 보관해요. 다른 기기에선 다시 입력해야 해요.</span>
           </span>
         </label>
       )}

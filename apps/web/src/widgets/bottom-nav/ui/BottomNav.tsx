@@ -28,7 +28,7 @@ export function BottomNav({ path }: { path: string }) {
               key={it.href}
               href={it.href}
               aria-current={active ? 'page' : undefined}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] transition-colors ${active ? 'text-brand' : 'text-muted hover:text-ink'}`}
+              className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-2xs transition-colors ${active ? 'text-brand' : 'text-muted hover:text-ink'}`}
             >
               {it.icon(active)}
               {it.label}

@@ -8,7 +8,7 @@ export function TableList({ tables, selected, onSelect }: { tables: TableInfo[];
           <button
             type="button"
             onClick={() => onSelect(t.name)}
-            className={`flex w-full items-center justify-between gap-3 px-3.5 py-2 text-left font-mono text-[13px] transition-colors ${selected === t.name ? 'bg-brand-soft text-brand' : 'hover:bg-surface-2'}`}
+            className={`flex w-full items-center justify-between gap-3 px-3.5 py-2 text-left font-mono text-sm transition-colors ${selected === t.name ? 'bg-brand-soft text-brand' : 'hover:bg-surface-2'}`}
           >
             <span className="truncate">{t.name}</span>
             <span className={`text-xs ${selected === t.name ? 'text-brand' : 'text-muted'}`}>{t.rows.toLocaleString('ko-KR')}</span>

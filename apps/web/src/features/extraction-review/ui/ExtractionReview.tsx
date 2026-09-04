@@ -97,7 +97,7 @@ function ExemptToggles({ e, editable, stack, onChange }: { e: ExtractedEligibili
             disabled={!editable}
             aria-pressed={on}
             onClick={() => onChange(on ? e.exempt.filter((k) => k !== x.key) : [...e.exempt, x.key])}
-            className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] ${on ? 'border-warn bg-warn-soft text-warn' : 'border-line text-muted hover:text-ink'}`}
+            className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-2xs ${on ? 'border-warn bg-warn-soft text-warn' : 'border-line text-muted hover:text-ink'}`}
           >
             {x.label}
           </button>
@@ -140,7 +140,7 @@ function GroupChips({ h, editable, onToggle }: { h: ExtractedHouse; editable: bo
             disabled={!editable}
             aria-pressed={on}
             onClick={() => onToggle(code)}
-            className={`rounded-full border px-2 py-0.5 text-[11px] ${on ? 'border-brand bg-brand-soft text-brand' : 'border-line text-muted hover:text-ink'}`}
+            className={`rounded-full border px-2 py-0.5 text-2xs ${on ? 'border-brand bg-brand-soft text-brand' : 'border-line text-muted hover:text-ink'}`}
           >
             {groupLabel(code)}
           </button>
@@ -273,7 +273,7 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
           <div className="mb-1.5 flex items-center justify-between">
             <h3 className="text-xs font-semibold text-muted">입주자격 (공고 × 계층)</h3>
             {editable && (
-              <button type="button" className="btn-ghost px-2 py-0.5 text-[11px]" disabled={busy} onClick={() => setElig((es) => [...es, EMPTY_ELIG])}>
+              <button type="button" className="btn-ghost px-2 py-0.5 text-2xs" disabled={busy} onClick={() => setElig((es) => [...es, EMPTY_ELIG])}>
                 계층 추가
               </button>
             )}
@@ -318,7 +318,7 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-sm">
               <thead className="bg-surface-2 text-left text-xs text-muted">
                 <tr>
                   <th className="px-2 py-1.5 font-medium">계층</th>
@@ -377,7 +377,7 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-muted">단지별 배정 계층{item.source !== 'SH' && ' · 단지 정보는 마이홈 값 유지, 배정 계층만 반영'}</h3>
             {editable && (
-              <button type="button" className="btn-ghost shrink-0 px-2 py-0.5 text-[11px]" disabled={busy} onClick={() => setHouses((hs) => [...hs, EMPTY_HOUSE])}>
+              <button type="button" className="btn-ghost shrink-0 px-2 py-0.5 text-2xs" disabled={busy} onClick={() => setHouses((hs) => [...hs, EMPTY_HOUSE])}>
                 단지 추가
               </button>
             )}
@@ -408,7 +408,7 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
           </div>
 
           <div className="hidden overflow-x-auto md:block">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-sm">
               <thead className="bg-surface-2 text-left text-xs text-muted">
                 <tr>
                   {cols.map((c) => (
