@@ -133,7 +133,13 @@ export class NoticesService {
               or exists (select 1 from notice_houses nh where nh.notice_id = n.id and nh.name ilike '%' || $5 || '%'))
          and ($8::bigint[] is null or n.id = any($8))
        order by
-         case when $9::text = 'recent' then 0 else case n.phase when 'open' then 0 when 'upcoming' then 1 else 2 end end,
+         -- 접수기간이 없는 공고(SH RSS)는 마감이 언제인지 알 수 없어 접수 예정보다도 뒤로 민다
+         case when $9::text = 'recent' then 0 else
+           case when n.phase = 'open' and n.apply_end_on is not null then 0
+                when n.phase = 'upcoming' then 1
+                when n.phase = 'open' then 2
+                else 3 end
+         end,
          case when $9::text = 'recent' then null else n.apply_end_on end asc nulls last,
          n.posted_on desc nulls last, n.id desc
        limit $6 offset $7`,

@@ -48,6 +48,9 @@ export class MatchingService {
         const codes = rules.filter((r) => r.supplyType === n.supplyType && matchedRules.includes(r.code)).map((r) => r.code);
         return { notice: n, codes, overridden: false, unverified: false };
       }
+      // 공고 자격 코드에 대응하는 공통 규칙이 하나도 없으면(매입임대의 OTHER처럼) 판정 자체가 불가능하다.
+      // 여기서 걸러내면 자격을 채워 넣은 공고가 오히려 목록에서 사라지므로, 자격 0행일 때와 같게 미검증으로 넘긴다
+      if (!n.eligibility.some((e) => rules.some((r) => r.code === e.code))) return { notice: n, codes: [], overridden: false, unverified: true };
       const codes = rules
         .filter((r) => n.eligibility.some((e) => e.code === r.code))
         .filter((r) => evaluate(profile, applyOverride(r, n.eligibility.find((e) => e.code === r.code)), base).ok)
