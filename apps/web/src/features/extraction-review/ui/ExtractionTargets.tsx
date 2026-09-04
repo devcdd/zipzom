@@ -90,7 +90,7 @@ export function ExtractionTargets() {
             ))}
           </select>
         </div>
-        <div className="w-56">
+        <div className="min-w-40 flex-1 sm:w-56 sm:flex-none">
           <input
             type="search"
             className="field text-xs"
@@ -113,7 +113,7 @@ export function ExtractionTargets() {
           />
           추출 안 한 공고만
         </label>
-        <div className="ml-auto flex items-center gap-2 text-xs">
+        <div className="ml-auto flex w-full items-center justify-end gap-2 text-xs sm:w-auto">
           {queue.data?.running && <span className="text-muted">추출 중… 남은 {queue.data.queued}건</span>}
           <button type="button" className="btn-primary px-3 py-1 text-xs" disabled={checked.size === 0} onClick={run}>
             선택 {checked.size}건 추출
@@ -126,13 +126,13 @@ export function ExtractionTargets() {
           <table className="w-full text-left text-xs">
             <thead className="text-muted">
               <tr className="border-b border-line">
-                <th className="w-8 p-2">
-                  <input type="checkbox" checked={allChecked} onChange={toggleAll} aria-label="이 페이지 전체 선택" />
+                <th className="w-9 p-2">
+                  <input type="checkbox" className="size-4" checked={allChecked} onChange={toggleAll} aria-label="이 페이지 전체 선택" />
                 </th>
                 <th className="p-2">공고</th>
-                <th className="w-20 p-2">소스</th>
-                <th className="w-24 p-2">유형</th>
-                <th className="w-24 p-2">공고일</th>
+                <th className="hidden w-20 p-2 sm:table-cell">소스</th>
+                <th className="hidden w-24 p-2 sm:table-cell">유형</th>
+                <th className="hidden w-24 p-2 sm:table-cell">공고일</th>
                 <th className="w-20 p-2">추출</th>
               </tr>
             </thead>
@@ -164,7 +164,7 @@ function Row({ item, checked, onToggle }: { item: ExtractTarget; checked: boolea
   return (
     <tr className="border-b border-line/60 last:border-0">
       <td className="p-2">
-        <input type="checkbox" checked={checked} onChange={onToggle} aria-label={item.title} />
+        <input type="checkbox" className="size-4" checked={checked} onChange={onToggle} aria-label={item.title} />
       </td>
       <td className="p-2">
         {item.detailUrl ? (
@@ -174,10 +174,14 @@ function Row({ item, checked, onToggle }: { item: ExtractTarget; checked: boolea
         ) : (
           item.title
         )}
+        {/* 접힌 열을 모바일에선 제목 아래 한 줄로 */}
+        <div className="mt-0.5 text-[11px] text-muted sm:hidden">
+          {item.source} · {item.supplyType ?? '—'} · {item.postedOn ?? '—'}
+        </div>
       </td>
-      <td className="p-2 text-muted">{item.source}</td>
-      <td className="p-2 text-muted">{item.supplyType ?? '—'}</td>
-      <td className="p-2 text-muted">{item.postedOn ?? '—'}</td>
+      <td className="hidden p-2 text-muted sm:table-cell">{item.source}</td>
+      <td className="hidden p-2 text-muted sm:table-cell">{item.supplyType ?? '—'}</td>
+      <td className="hidden p-2 text-muted sm:table-cell">{item.postedOn ?? '—'}</td>
       <td className="p-2">{status ? <Tag tone={status.tone}>{status.label}</Tag> : <span className="text-muted">—</span>}</td>
     </tr>
   );

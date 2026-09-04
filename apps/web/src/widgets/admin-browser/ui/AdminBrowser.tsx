@@ -25,32 +25,31 @@ export function AdminBrowser() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-lg font-semibold">어드민</h1>
-          <div className="flex gap-1 rounded-md bg-surface-2 p-0.5 text-xs">
-            {(
-              [
-                ['targets', '추출 대상'],
-                ['review', '추출 검수'],
-                ['merge', '중복 병합'],
-                ['db', 'DB'],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setTab(k)}
-                className={`rounded px-2.5 py-1 font-medium transition-colors ${tab === k ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-1">
+      {/* 모바일에선 탭이 제목·동기화 아래 한 줄을 통으로 쓴다 */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h1 className="text-lg font-semibold">어드민</h1>
+        <div className="ml-auto flex flex-col items-end gap-1 sm:order-3">
           <SyncButton onDone={refresh} />
           <LastSync refreshKey={tables.data} />
+        </div>
+        <div className="order-4 flex w-full gap-1 overflow-x-auto rounded-md bg-surface-2 p-0.5 text-xs sm:order-2 sm:w-auto">
+          {(
+            [
+              ['targets', '추출 대상'],
+              ['review', '추출 검수'],
+              ['merge', '중복 병합'],
+              ['db', 'DB'],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              className={`shrink-0 whitespace-nowrap rounded px-2.5 py-1 font-medium transition-colors ${tab === k ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
       {tab === 'targets' && <ExtractionTargets />}

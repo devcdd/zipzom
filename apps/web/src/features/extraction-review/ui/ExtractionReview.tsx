@@ -11,21 +11,21 @@ const STATUS: Record<Extraction['status'], { label: string; tone: TagTone }> = {
   FAILED: { label: '추출 실패', tone: 'danger' },
 };
 
-type HouseCol = { key: keyof ExtractedHouse; label: string; num?: boolean };
+type HouseCol = { key: keyof ExtractedHouse; label: string; num?: boolean; width: string };
 // SH는 단지 표 전체를 교체하고, LH는 마이홈 단지가 이미 있어 이름·배정만 맞춘다
 const SH_COLS: HouseCol[] = [
-  { key: 'name', label: '단지명' },
-  { key: 'address', label: '주소' },
-  { key: 'supplyCount', label: '공급호수', num: true },
-  { key: 'totalHouseholds', label: '총세대', num: true },
-  { key: 'minDeposit', label: '최저 보증금(원)', num: true },
-  { key: 'minMonthlyRent', label: '최저 월세(원)', num: true },
-  { key: 'areaMin', label: '면적 최소(㎡)', num: true },
-  { key: 'areaMax', label: '면적 최대(㎡)', num: true },
+  { key: 'name', label: '단지명', width: 'min-w-40' },
+  { key: 'address', label: '주소', width: 'min-w-64' },
+  { key: 'supplyCount', label: '공급호수', num: true, width: 'w-24' },
+  { key: 'totalHouseholds', label: '총세대', num: true, width: 'w-24' },
+  { key: 'minDeposit', label: '최저 보증금(원)', num: true, width: 'w-24' },
+  { key: 'minMonthlyRent', label: '최저 월세(원)', num: true, width: 'w-24' },
+  { key: 'areaMin', label: '면적 최소(㎡)', num: true, width: 'w-24' },
+  { key: 'areaMax', label: '면적 최대(㎡)', num: true, width: 'w-24' },
 ];
 const LH_COLS: HouseCol[] = [
-  { key: 'name', label: '단지명 (마이홈 단지명과 부분일치로 매칭)' },
-  { key: 'supplyCount', label: '공급호수', num: true },
+  { key: 'name', label: '단지명 (마이홈 단지명과 부분일치로 매칭)', width: 'min-w-40' },
+  { key: 'supplyCount', label: '공급호수', num: true, width: 'w-24' },
 ];
 
 type EligCol = { key: keyof ExtractedEligibility; label: string; num?: boolean; width: string; manwon?: boolean };
@@ -54,6 +54,111 @@ const fmtTs = (iso: string) => {
   return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
+/**
+ * 셀 하나. 데스크톱 표와 모바일 카드가 같은 입력을 쓰도록 분리했다. width는 표에선 열 폭, 카드에선 w-full.
+ */
+function EligCell({ col, e, editable, width, onChange }: { col: EligCol; e: ExtractedEligibility; editable: boolean; width: string; onChange: (v: unknown) => void }) {
+  const raw = e[col.key] as string | number | null;
+  if (!editable)
+    return (
+      <span className={col.num ? 'block text-right tabular-nums' : ''}>
+        {col.manwon && raw != null ? `${Math.round((raw as number) / 10_000).toLocaleString('ko-KR')}만` : (raw?.toLocaleString('ko-KR') ?? '—')}
+      </span>
+    );
+  return (
+    <input
+      className={`field px-2 py-1 ${width} ${col.num ? 'text-right' : ''}`}
+      type={col.num ? 'number' : 'text'}
+      value={col.manwon && raw != null ? Math.round((raw as number) / 10_000) : (raw ?? '')}
+      onChange={(ev) => {
+        const v = col.num ? numOrNull(ev.target.value) : ev.target.value;
+        onChange(col.manwon && typeof v === 'number' ? v * 10_000 : v);
+      }}
+    />
+  );
+}
+
+function HouseCell({ col, h, editable, width, onChange }: { col: HouseCol; h: ExtractedHouse; editable: boolean; width: string; onChange: (raw: string) => void }) {
+  const raw = h[col.key] as string | number | null;
+  if (!editable) return <span className={col.num ? 'block text-right tabular-nums' : ''}>{raw?.toLocaleString('ko-KR') ?? '—'}</span>;
+  return <input className={`field px-2 py-1 ${width} ${col.num ? 'text-right' : ''}`} type={col.num ? 'number' : 'text'} value={raw ?? ''} onChange={(ev) => onChange(ev.target.value)} />;
+}
+
+function ExemptToggles({ e, editable, stack, onChange }: { e: ExtractedEligibility; editable: boolean; stack?: boolean; onChange: (next: string[]) => void }) {
+  return (
+    <div className={stack ? 'flex flex-col gap-0.5' : 'flex flex-wrap gap-1'}>
+      {EXEMPT.map((x) => {
+        const on = e.exempt.includes(x.key);
+        if (!editable && !on) return null;
+        return (
+          <button
+            key={x.key}
+            type="button"
+            disabled={!editable}
+            aria-pressed={on}
+            onClick={() => onChange(on ? e.exempt.filter((k) => k !== x.key) : [...e.exempt, x.key])}
+            className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] ${on ? 'border-warn bg-warn-soft text-warn' : 'border-line text-muted hover:text-ink'}`}
+          >
+            {x.label}
+          </button>
+        );
+      })}
+      {!editable && e.exempt.length === 0 && <span className="text-xs text-muted">—</span>}
+    </div>
+  );
+}
+
+function ConditionsField({ e, editable, width, onChange }: { e: ExtractedEligibility; editable: boolean; width: string; onChange: (next: string[]) => void }) {
+  if (!editable)
+    return (
+      <ul className="list-disc pl-4 text-xs text-muted">
+        {e.conditions.map((c, k) => (
+          <li key={k}>{c}</li>
+        ))}
+      </ul>
+    );
+  return (
+    <textarea
+      className={`field px-2 py-1 text-xs ${width}`}
+      rows={Math.max(2, e.conditions.length)}
+      value={e.conditions.join('\n')}
+      onChange={(ev) => onChange(ev.target.value.split('\n').map((l) => l.trim()).filter(Boolean))}
+    />
+  );
+}
+
+function GroupChips({ h, editable, onToggle }: { h: ExtractedHouse; editable: boolean; onToggle: (code: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {GROUP_CODES.map((code) => {
+        const on = h.groups.some((g) => g.code === code);
+        if (!editable && !on) return null;
+        return (
+          <button
+            key={code}
+            type="button"
+            disabled={!editable}
+            aria-pressed={on}
+            onClick={() => onToggle(code)}
+            className={`rounded-full border px-2 py-0.5 text-[11px] ${on ? 'border-brand bg-brand-soft text-brand' : 'border-line text-muted hover:text-ink'}`}
+          >
+            {groupLabel(code)}
+          </button>
+        );
+      })}
+      {!editable && h.groups.length === 0 && <span className="text-xs text-muted">—</span>}
+    </div>
+  );
+}
+
+function RemoveButton({ title, onClick }: { title: string; onClick: () => void }) {
+  return (
+    <button type="button" className="shrink-0 px-1 text-muted hover:text-danger" title={title} aria-label={title} onClick={onClick}>
+      ×
+    </button>
+  );
+}
+
 /** 원문 PDF 옆에서 자격 기준·단지 표를 셀 단위로 고쳐 승인. 승인 전엔 아무것도 반영되지 않는다 */
 function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChanged: () => void; queued?: boolean }) {
   // 스키마 확장 전에 저장된 행은 groups·exempt·conditions가 없다
@@ -77,6 +182,8 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
       }),
     );
   const setEl = (i: number, key: keyof ExtractedEligibility, value: unknown) => setElig((es) => es.map((e, j) => (j === i ? { ...e, [key]: value } : e)));
+  const removeElig = (i: number) => setElig((es) => es.filter((_, j) => j !== i));
+  const removeHouse = (i: number) => setHouses((hs) => hs.filter((_, j) => j !== i));
 
   const run = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -94,10 +201,10 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
   const canApprove = houses.every((h) => h.name.trim()) && elig.every((e) => e.label.trim()) && (houses.length > 0 || elig.length > 0);
 
   return (
-    <div className="card p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
+    <div className="card p-3 sm:p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Tag tone={STATUS[item.status].tone}>{STATUS[item.status].label}</Tag>
             <Tag tone="ink">{item.source}</Tag>
             <span className="text-xs text-muted">
@@ -105,8 +212,8 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
               {item.reviewedAt && ` · ${item.status === 'REJECTED' ? '반려' : '승인'} ${fmtTs(item.reviewedAt)}`}
             </span>
           </div>
-          <h2 className="mt-1 truncate text-sm font-semibold">{item.title}</h2>
-          <div className="mt-1 flex gap-3 text-xs">
+          <h2 className="mt-1 line-clamp-2 text-sm font-semibold sm:truncate">{item.title}</h2>
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
             <a href={item.pdfUrl} target="_blank" rel="noreferrer" className="text-brand underline">
               공고문 PDF{item.pdfName && ` · ${item.pdfName}`}
             </a>
@@ -117,21 +224,37 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
             )}
           </div>
         </div>
-        <div className="flex gap-1.5">
+        {/* 모바일에선 버튼이 한 줄을 나눠 갖는다 */}
+        <div className="flex shrink-0 gap-1.5">
           {pending && (
-            <button type="button" className="btn-ghost px-2.5 py-1 text-xs" disabled={busy} onClick={() => run(() => extractionApi.reject(item.noticeId))}>
+            <button type="button" className="btn-ghost flex-1 justify-center px-2.5 py-1 text-xs sm:flex-none" disabled={busy} onClick={() => run(() => extractionApi.reject(item.noticeId))}>
               반려
             </button>
           )}
           {editable && (
-            <button type="button" className="btn-primary px-2.5 py-1 text-xs" disabled={busy || !canApprove} onClick={() => run(() => extractionApi.approve(item.noticeId, houses, elig))}>
-              {busy ? '반영 중…' : `${pending ? '승인' : '수정 반영'} · 자격 ${elig.length}계층 · 단지 ${houses.length}`}
+            <button
+              type="button"
+              className="btn-primary flex-1 justify-center px-2.5 py-1 text-xs sm:flex-none"
+              disabled={busy || !canApprove}
+              onClick={() => run(() => extractionApi.approve(item.noticeId, houses, elig))}
+            >
+              {busy ? (
+                '반영 중…'
+              ) : (
+                <>
+                  {pending ? '승인' : '수정 반영'}
+                  <span className="hidden sm:inline">
+                    {' '}
+                    · 자격 {elig.length}계층 · 단지 {houses.length}
+                  </span>
+                </>
+              )}
             </button>
           )}
           {/* 승인된 건도 재추출 가능. 결과는 검수 대기로 돌아가고, 승인 전까지 기존 반영값은 유지된다 */}
           <button
             type="button"
-            className="btn-ghost px-2.5 py-1 text-xs"
+            className="btn-ghost flex-1 justify-center whitespace-nowrap px-2.5 py-1 text-xs sm:flex-none"
             disabled={busy}
             onClick={() => {
               if (item.status === 'APPROVED' && !confirm('다시 추출하면 검수 대기로 돌아갑니다. 이미 반영된 값은 다시 승인하기 전까지 유지돼요.')) return;
@@ -142,7 +265,7 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
           </button>
         </div>
       </div>
-      {item.error && <p className="mt-2 font-mono text-xs text-danger">{item.error}</p>}
+      {item.error && <p className="mt-2 font-mono text-xs break-all text-danger">{item.error}</p>}
       {error && <p className="mt-2 text-xs text-danger">{error}</p>}
 
       {(elig.length > 0 || editable) && (
@@ -155,7 +278,46 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
               </button>
             )}
           </div>
-          <div className="overflow-x-auto">
+
+          {/* 모바일: 행 하나를 카드로. 가로 스크롤하며 셀을 채우는 건 손가락으로 거의 불가능하다 */}
+          <div className="flex flex-col gap-2 md:hidden">
+            {elig.map((e, i) => (
+              <div key={i} className="rounded-lg border border-line p-2.5">
+                <div className="flex items-center gap-2">
+                  {editable ? (
+                    <select className="field px-2 py-1 text-xs" value={e.code} onChange={(ev) => setEl(i, 'code', ev.target.value)}>
+                      {GROUP_CODES.map((c) => (
+                        <option key={c} value={c}>
+                          {groupLabel(c)}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <Tag tone="brand">{groupLabel(e.code)}</Tag>
+                  )}
+                  {editable && <RemoveButton title="계층 삭제" onClick={() => removeElig(i)} />}
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {ELIG_COLS.map((c) => (
+                    <label key={c.key} className={c.num ? '' : 'col-span-2'}>
+                      <span className="label">{c.label}</span>
+                      <EligCell col={c} e={e} editable={editable} width="w-full" onChange={(v) => setEl(i, c.key, v)} />
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <span className="label">배제</span>
+                  <ExemptToggles e={e} editable={editable} onChange={(next) => setEl(i, 'exempt', next)} />
+                </div>
+                <div className="mt-2">
+                  <span className="label">조건 (줄바꿈 구분)</span>
+                  <ConditionsField e={e} editable={editable} width="w-full" onChange={(next) => setEl(i, 'conditions', next)} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-[13px]">
               <thead className="bg-surface-2 text-left text-xs text-muted">
                 <tr>
@@ -188,65 +350,18 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
                     </td>
                     {ELIG_COLS.map((c) => (
                       <td key={c.key} className="px-1 py-1">
-                        {editable ? (
-                          <input
-                            className={`field px-2 py-1 ${c.width} ${c.num ? 'text-right' : ''}`}
-                            type={c.num ? 'number' : 'text'}
-                            value={c.manwon && e[c.key] != null ? Math.round((e[c.key] as number) / 10_000) : ((e[c.key] as string | number | null) ?? '')}
-                            onChange={(ev) => {
-                              const v = c.num ? numOrNull(ev.target.value) : ev.target.value;
-                              setEl(i, c.key, c.manwon && typeof v === 'number' ? v * 10_000 : v);
-                            }}
-                          />
-                        ) : (
-                          <span className={c.num ? 'block text-right tabular-nums' : ''}>
-                            {c.manwon && e[c.key] != null ? `${Math.round((e[c.key] as number) / 10_000).toLocaleString('ko-KR')}만` : ((e[c.key] as string | number | null)?.toLocaleString('ko-KR') ?? '—')}
-                          </span>
-                        )}
+                        <EligCell col={c} e={e} editable={editable} width={c.width} onChange={(v) => setEl(i, c.key, v)} />
                       </td>
                     ))}
                     <td className="px-1 py-1">
-                      <div className="flex flex-col gap-0.5">
-                        {EXEMPT.map((x) => {
-                          const on = e.exempt.includes(x.key);
-                          if (!editable && !on) return null;
-                          return (
-                            <button
-                              key={x.key}
-                              type="button"
-                              disabled={!editable}
-                              aria-pressed={on}
-                              onClick={() => setEl(i, 'exempt', on ? e.exempt.filter((k) => k !== x.key) : [...e.exempt, x.key])}
-                              className={`whitespace-nowrap rounded border px-1.5 py-0.5 text-[11px] ${on ? 'border-warn bg-warn-soft text-warn' : 'border-line text-muted hover:text-ink'}`}
-                            >
-                              {x.label}
-                            </button>
-                          );
-                        })}
-                        {!editable && e.exempt.length === 0 && <span className="text-xs text-muted">—</span>}
-                      </div>
+                      <ExemptToggles e={e} editable={editable} stack onChange={(next) => setEl(i, 'exempt', next)} />
                     </td>
                     <td className="px-1 py-1">
-                      {editable ? (
-                        <textarea
-                          className="field min-w-64 px-2 py-1 text-xs"
-                          rows={Math.max(2, e.conditions.length)}
-                          value={e.conditions.join('\n')}
-                          onChange={(ev) => setEl(i, 'conditions', ev.target.value.split('\n').map((l) => l.trim()).filter(Boolean))}
-                        />
-                      ) : (
-                        <ul className="list-disc pl-4 text-xs text-muted">
-                          {e.conditions.map((c, k) => (
-                            <li key={k}>{c}</li>
-                          ))}
-                        </ul>
-                      )}
+                      <ConditionsField e={e} editable={editable} width="min-w-64" onChange={(next) => setEl(i, 'conditions', next)} />
                     </td>
                     {editable && (
                       <td className="px-1 text-center">
-                        <button type="button" className="text-muted hover:text-danger" title="삭제" onClick={() => setElig((es) => es.filter((_, j) => j !== i))}>
-                          ×
-                        </button>
+                        <RemoveButton title="계층 삭제" onClick={() => removeElig(i)} />
                       </td>
                     )}
                   </tr>
@@ -259,15 +374,40 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
 
       {(houses.length > 0 || editable) && (
         <section className="mt-4">
-          <div className="mb-1.5 flex items-center justify-between">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
             <h3 className="text-xs font-semibold text-muted">단지별 배정 계층{item.source !== 'SH' && ' · 단지 정보는 마이홈 값 유지, 배정 계층만 반영'}</h3>
             {editable && (
-              <button type="button" className="btn-ghost px-2 py-0.5 text-[11px]" disabled={busy} onClick={() => setHouses((hs) => [...hs, EMPTY_HOUSE])}>
+              <button type="button" className="btn-ghost shrink-0 px-2 py-0.5 text-[11px]" disabled={busy} onClick={() => setHouses((hs) => [...hs, EMPTY_HOUSE])}>
                 단지 추가
               </button>
             )}
           </div>
-          <div className="overflow-x-auto">
+
+          <div className="flex flex-col gap-2 md:hidden">
+            {houses.map((h, i) => (
+              <div key={i} className="rounded-lg border border-line p-2.5">
+                <div className="grid grid-cols-2 gap-2">
+                  {cols.map((c) => (
+                    <label key={c.key} className={c.num ? '' : 'col-span-2'}>
+                      <span className="label">{c.label}</span>
+                      <HouseCell col={c} h={h} editable={editable} width="w-full" onChange={(raw) => setHouse(i, c.key, raw, c.num)} />
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-2">
+                  <span className="label">배정 계층</span>
+                  <GroupChips h={h} editable={editable} onToggle={(code) => toggleGroup(i, code)} />
+                </div>
+                {editable && (
+                  <div className="mt-2 text-right">
+                    <RemoveButton title="단지 삭제" onClick={() => removeHouse(i)} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-[13px]">
               <thead className="bg-surface-2 text-left text-xs text-muted">
                 <tr>
@@ -285,44 +425,15 @@ function ExtractionCard({ item, onChanged, queued }: { item: Extraction; onChang
                   <tr key={i} className="align-top">
                     {cols.map((c) => (
                       <td key={c.key} className="px-1 py-1">
-                        {editable ? (
-                          <input
-                            className={`field px-2 py-1 ${c.num ? 'w-24 text-right' : c.key === 'address' ? 'min-w-64' : 'min-w-40'}`}
-                            type={c.num ? 'number' : 'text'}
-                            value={(h[c.key] as string | number | null) ?? ''}
-                            onChange={(ev) => setHouse(i, c.key, ev.target.value, c.num)}
-                          />
-                        ) : (
-                          <span className={c.num ? 'block text-right tabular-nums' : ''}>{(h[c.key] as string | number | null)?.toLocaleString('ko-KR') ?? '—'}</span>
-                        )}
+                        <HouseCell col={c} h={h} editable={editable} width={c.width} onChange={(raw) => setHouse(i, c.key, raw, c.num)} />
                       </td>
                     ))}
                     <td className="px-1 py-1">
-                      <div className="flex flex-wrap gap-1">
-                        {GROUP_CODES.map((code) => {
-                          const on = h.groups.some((g) => g.code === code);
-                          if (!editable && !on) return null;
-                          return (
-                            <button
-                              key={code}
-                              type="button"
-                              disabled={!editable}
-                              aria-pressed={on}
-                              onClick={() => toggleGroup(i, code)}
-                              className={`rounded-full border px-2 py-0.5 text-[11px] ${on ? 'border-brand bg-brand-soft text-brand' : 'border-line text-muted hover:text-ink'}`}
-                            >
-                              {groupLabel(code)}
-                            </button>
-                          );
-                        })}
-                        {!editable && h.groups.length === 0 && <span className="text-xs text-muted">—</span>}
-                      </div>
+                      <GroupChips h={h} editable={editable} onToggle={(code) => toggleGroup(i, code)} />
                     </td>
                     {editable && (
                       <td className="px-1 text-center">
-                        <button type="button" className="text-muted hover:text-danger" title="행 삭제" onClick={() => setHouses((hs) => hs.filter((_, j) => j !== i))}>
-                          ×
-                        </button>
+                        <RemoveButton title="단지 삭제" onClick={() => removeHouse(i)} />
                       </td>
                     )}
                   </tr>
@@ -365,7 +476,7 @@ export function ExtractionReview() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex gap-1 rounded-md bg-surface-2 p-0.5 text-xs">
+        <div className="flex gap-1 overflow-x-auto rounded-md bg-surface-2 p-0.5 text-xs">
           {FILTERS.map((f) => (
             <button
               key={f.key}
@@ -374,20 +485,20 @@ export function ExtractionReview() {
                 setStatus(f.key);
                 setOffset(0);
               }}
-              className={`rounded px-2.5 py-1 font-medium transition-colors ${status === f.key ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+              className={`shrink-0 whitespace-nowrap rounded px-2.5 py-1 font-medium transition-colors ${status === f.key ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
             >
               {f.label}
             </button>
           ))}
         </div>
-        {queue.data?.running && (
-          <span className="text-xs text-muted">추출 중… {queue.data.current ? `#${queue.data.current}` : ''} 남은 {queue.data.queued}건</span>
-        )}
-        {list.data && (
-          <span className="text-xs text-muted">
-            {total === 0 ? 0 : offset + 1}–{Math.min(offset + LIMIT, total)} / {total}
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-2 text-xs text-muted">
+          {queue.data?.running && <span>추출 중… {queue.data.current ? `#${queue.data.current}` : ''} 남은 {queue.data.queued}건</span>}
+          {list.data && (
+            <span>
+              {total === 0 ? 0 : offset + 1}–{Math.min(offset + LIMIT, total)} / {total}
+            </span>
+          )}
+        </div>
       </div>
       <PageState loading={list.loading && !list.data} error={list.error} empty={list.data?.items.length === 0} emptyMessage="해당 상태의 추출이 없어요. '추출 대상' 탭에서 공고를 골라 추출하면 여기 쌓여요.">
         <div className="flex flex-col gap-3">
