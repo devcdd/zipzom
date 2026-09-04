@@ -23,7 +23,15 @@ body { @apply bg-ground text-ink antialiased; font-variant-numeric: tabular-nums
 .btn, .btn-primary, .btn-ghost { @apply inline-flex items-center gap-1.5 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed; }
 .btn-primary { @apply bg-brand text-white hover:bg-[#186549]; }
 .btn-ghost { @apply border border-line bg-surface text-ink hover:bg-surface-2; }
-.field { @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-brand/40; }
+/* iOS Safari는 폰트가 16px 미만인 입력에 포커스하면 화면을 확대한다. 기본을 16px로 두고
+   포인터가 정밀한 환경(마우스)에서만 14px로 줄인다 — 확대는 터치 기기에서만 일어나므로 */
+.field {
+  @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-brand/40;
+  font-size: 16px;
+}
+@media (pointer: fine) {
+  .field { font-size: 0.875rem; }
+}
 .label { @apply block text-xs font-medium text-muted mb-1.5; }
 .tag { @apply inline-flex items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-4 whitespace-nowrap; }
 .card { @apply rounded-xl border border-line bg-surface; }
