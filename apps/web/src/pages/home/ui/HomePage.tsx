@@ -6,7 +6,7 @@ import { useProfile } from '@/entities/profile';
 import { regionApi } from '@/entities/region';
 import { useSession } from '@/entities/user';
 import { useAsync, withinDays } from '@/shared/lib';
-import { PageState } from '@/shared/ui';
+import { PageState, ScrollTopButton } from '@/shared/ui';
 import { EligibilitySummary } from '@/widgets/eligibility-summary';
 import { NoticeFeed } from '@/widgets/notice-feed';
 import { NoticeMap, noticesToMarkers, useNoticeSelection } from '@/widgets/notice-map';
@@ -112,6 +112,7 @@ export function HomePage() {
           지난 공고 보기
         </a>
       </div>
+      <ScrollTopButton />
     </div>
   );
 }
