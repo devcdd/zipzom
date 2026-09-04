@@ -13,16 +13,18 @@ const DOT: Record<State, string> = {
 /** 공고 → 접수 → 발표 진행도. 점 3개 + 현재 단계 D-day 한 줄, 날짜는 title로. */
 export function NoticeTimeline({ notice: n }: { notice: Notice }) {
   const announceDday = dday(n.winnerAnnounceOn);
+  const endDday = dday(n.applyEndOn);
   const announced = !!n.winnerAnnounceOn && announceDday === null; // 발표일 지남
   const states: State[] = [
     'done',
     n.phase === 'closed' ? 'done' : n.phase === 'open' ? 'current' : 'next',
     n.phase !== 'closed' ? 'future' : announced ? 'done' : 'next',
   ];
-  // 접수 예정은 시작까지, 접수중은 마감까지, 마감 후엔 발표까지
+  // 접수 예정은 시작까지, 접수중은 마감까지, 마감 후엔 발표까지.
+  // SH RSS처럼 접수기간이 없는 공고는 마감일이 비어 "마감"만 남아 마감된 것처럼 보였다
   const text =
     n.phase === 'upcoming' ? `접수 ${dday(n.applyBeginOn) ?? ''}`
-    : n.phase === 'open' ? `마감 ${dday(n.applyEndOn) ?? ''}`
+    : n.phase === 'open' ? (endDday ? `마감 ${endDday}` : '접수기간 미상')
     : announced ? '발표 완료'
     : `발표 ${announceDday ?? '미정'}`;
   const title = [
